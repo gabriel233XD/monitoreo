@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Ambiental 🌍</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS para exportar a Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
+      padding: 30px;
+      color: #333;
+    }
+    h1 {
+      display: flex;
+      align-items: center;
+      font-size: 28px;
+    }
+    h1::before {
+      content: "🌍";
+      margin-right: 10px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      margin: 10px 0;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      font-size: 18px;
+    }
+    #chartContainer {
+      margin-top: 30px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+    }
+    button {
+      margin-top: 20px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background: #007bff;
+      color: white;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Dashboard Ambiental</h1>
+
+  <div class="card">🌡️ Temperatura: <span id="temperatura">-- °C</span></div>
+  <div class="card">💧 Humedad: <span id="humedad">-- %</span></div>
+  <div class="card">📊 Presión: <span id="presion">-- hPa</span></div>
+  <div class="card">🔊 Nivel Sonoro: <span id="nivel_sonoro">-- dB</span></div>
+
+  <div id="chartContainer">
+    <canvas id="graficoDatos" width="400" height="200"></canvas>
+  </div>
+
+  <button onclick="exportarExcel()">📁 Exportar a Excel</button>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
+      authDomain: "monitorio-4e133.firebaseapp.com",
+      databaseURL: "https://monitorio-4e133-default-rtdb.firebaseio.com",
+      projectId: "monitorio-4e133",
+      storageBucket: "monitorio-4e133.appspot.com",
+      messagingSenderId: "515981874171",
+      appId: "1:515981874171:web:98dbf980030fb84e9db15e",
+      measurementId: "G-MBWHMXRWBJ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const refLecturas = ref(db, "lecturas");
+
+    // Arrays para el gráfico
+    const labels = [];
+    const temperaturas = [];
+    const humedades = [];
+    const presiones = [];
+    const sonidos = [];
+
+    // Gráfico de línea
+    const ctx = document.getElementById('graficoDatos').getContext('2d');
+    const grafico = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Temperatura (°C)',
+            borderColor: 'red',
+            data: temperaturas,
+            fill: false
+          },
+          {
+            label: 'Humedad (%)',
+            borderColor: 'blue',
+            data: humedades,
+            fill: false
+          },
+          {
+            label: 'Presión (hPa)',
+            borderColor: 'green',
+            data: presiones,
+            fill: false
+          },
+          {
+            label: 'Nivel Sonoro (dB)',
+            borderColor: 'orange',
+            data: sonidos,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top'
+          }
+        }
+      }
+    });
+
+    const tablaDatos = [];
+
+    onChildAdded(refLecturas, (snapshot) => {
+      const data = snapshot.val();
+      const timestamp = new Date().toLocaleTimeString();
+      const now = new Date();
+      const fecha = now.toLocaleDateString(); // Ej: "9/7/2025"
+      const hora = now.toLocaleTimeString();  // Ej: "16:48:22"
+      const fechaHora = `${fecha} ${hora}`;
+
+      // Mostrar en tarjetas
+      document.getElementById("temperatura").textContent = `${data.temperatura} °C`;
+      document.getElementById("humedad").textContent = `${data.humedad} %`;
+      document.getElementById("presion").textContent = `${data.presion} hPa`;
+      document.getElementById("nivel_sonoro").textContent = `${data.nivel_sonoro} dB`;
+
+      // Agregar al gráfico
+      if (labels.length > 20) {
+        labels.shift();
+        temperaturas.shift();
+        humedades.shift();
+        presiones.shift();
+        sonidos.shift();
+      }
+
+      labels.push(timestamp);
+      temperaturas.push(data.temperatura);
+      humedades.push(data.humedad);
+      presiones.push(data.presion);
+      sonidos.push(data.nivel_sonoro);
+      grafico.update();
+
+      // Guardar para Excel
+      tablaDatos.push({
+        Fecha: fecha,
+        Hora: hora,
+        Temperatura: data.temperatura,
+        Humedad: data.humedad,
+        Presion: data.presion,
+        NivelSonoro: data.nivel_sonoro
+      });
+    });
+
+    // Función para exportar a Excel
+    window.exportarExcel = () => {
+      const ws = XLSX.utils.json_to_sheet(tablaDatos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Lecturas");
+      XLSX.writeFile(wb, "datos_ambientales.xlsx");
+    };
+  </script>
+</body>
+</html>
