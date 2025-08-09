@@ -2,111 +2,12 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Dashboard Ambiental — Gráficos separados</title>
+  <title>Dashboard Ambiental</title>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- Firebase SDK (modules) -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
-    // ==== CONFIG FIREBASE (tu proyecto) ====
-    const firebaseConfig = {
-      apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
-      authDomain: "monitorio-4e133.firebaseapp.com",
-      databaseURL: "https://monitorio-4e133-default-rtdb.firebaseio.com",
-      projectId: "monitorio-4e133",
-      storageBucket: "monitorio-4e133.appspot.com",
-      messagingSenderId: "515981874171",
-      appId: "1:515981874171:web:98dbf980030fb84e9db15e",
-      measurementId: "G-MBWHMXRWBJ"
-    };
-
-    // ==== INICIO APP ====
-    const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
-    const lecturasRef = ref(db, "lecturas");
-
-    // ==== ARRAYS de datos ====
-    const MAX_PUNTOS = 60; // últimos 60 puntos
-    const labels = [];
-
-    const tempData = [];
-    const humData  = [];
-    const presData = [];
-    const ruidoData= [];
-
-    // ==== Utilidad: recorta arrays ====
-    function trimArrays() {
-      const arrs = [labels, tempData, humData, presData, ruidoData];
-      arrs.forEach(a => { if (a.length > MAX_PUNTOS) a.shift(); });
-    }
-
-    // ==== Crear gráficos (uno por sensor) ====
-    function makeLineChart(ctx, label, data) {
-      return new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label,
-            data,
-            fill: false
-          }]
-        },
-        options: {
-          responsive: true,
-          animation: false,
-          interaction: { mode: 'nearest', intersect: false },
-          scales: {
-            x: { ticks: { autoSkip: true, maxTicksLimit: 8 } }
-          }
-        }
-      });
-    }
-
-    // Obtiene contextos
-    const ctxTemp  = document.getElementById('chartTemp').getContext('2d');
-    const ctxHum   = document.getElementById('chartHum').getContext('2d');
-    const ctxPres  = document.getElementById('chartPres').getContext('2d');
-    const ctxRuido = document.getElementById('chartRuido').getContext('2d');
-
-    // Crea charts
-    const chartTemp  = makeLineChart(ctxTemp,  "Temperatura (°C)", tempData);
-    const chartHum   = makeLineChart(ctxHum,   "Humedad (%)",      humData);
-    const chartPres  = makeLineChart(ctxPres,  "Presión (hPa)",    presData);
-    const chartRuido = makeLineChart(ctxRuido, "Nivel sonoro (0–100)", ruidoData);
-
-    // ==== Escuchar nuevas lecturas ====
-    onChildAdded(lecturasRef, (snap) => {
-      const d = snap.val();
-      const now = new Date();
-      const hh = now.toLocaleTimeString();
-
-      // Actualiza tarjetas
-      if (typeof d.temperatura !== "undefined") document.getElementById("vTemp").textContent  = d.temperatura.toFixed(2) + " °C";
-      if (typeof d.humedad     !== "undefined") document.getElementById("vHum").textContent   = d.humedad.toFixed(2)    + " %";
-      if (typeof d.presion     !== "undefined") document.getElementById("vPres").textContent  = d.presion.toFixed(2)    + " hPa";
-      if (typeof d.nivel_sonoro!== "undefined") document.getElementById("vRuido").textContent = d.nivel_sonoro.toFixed(2);
-
-      // Push a arrays
-      labels.push(hh);
-      tempData.push(Number(d.temperatura ?? NaN));
-      humData.push(Number(d.humedad ?? NaN));
-      presData.push(Number(d.presion ?? NaN));
-      ruidoData.push(Number(d.nivel_sonoro ?? NaN));
-
-      trimArrays();
-
-      // Actualiza charts
-      chartTemp.update();
-      chartHum.update();
-      chartPres.update();
-      chartRuido.update();
-    });
-  </script>
+  <!-- SheetJS para exportar a Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
     :root { --bg:#f6f7fb; --card:#fff; --txt:#1f2937; --muted:#6b7280; }
@@ -114,13 +15,14 @@
     body { margin:0; padding:24px; font-family: system-ui, Arial, sans-serif; background: var(--bg); color: var(--txt); }
     h1 { margin: 0 0 16px 0; font-size: 24px; }
     .grid { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; }
-    .card {
-      background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
-    }
+    .card { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.06); }
     .metric { font-size: 14px; color: var(--muted); }
     .value { font-size: 24px; font-weight: 700; margin-top: 6px; }
     .charts { margin-top: 18px; display:grid; grid-template-columns: repeat(2, minmax(300px,1fr)); gap:16px; }
     canvas { width:100%; height:320px; }
+    .actions { margin: 18px 0; }
+    button { padding: 10px 16px; font-size: 15px; border:0; border-radius:10px; background:#0ea5e9; color:#fff; cursor:pointer; }
+    button:hover { filter: brightness(1.05); }
     @media (max-width: 980px){
       .grid { grid-template-columns: 1fr 1fr; }
       .charts { grid-template-columns: 1fr; }
@@ -138,7 +40,7 @@
     </div>
     <div class="card">
       <div class="metric">💧 Humedad</div>
-      <div id="vHum" class="value">-- %</div>
+      <div id="vHum"  class="value">-- %</div>
     </div>
     <div class="card">
       <div class="metric">📊 Presión</div>
@@ -150,6 +52,10 @@
     </div>
   </div>
 
+  <div class="actions">
+    <button id="btnExcel">📥 Descargar Excel</button>
+  </div>
+
   <!-- Gráficos separados -->
   <div class="charts">
     <div class="card"><canvas id="chartTemp"></canvas></div>
@@ -157,5 +63,121 @@
     <div class="card"><canvas id="chartPres"></canvas></div>
     <div class="card"><canvas id="chartRuido"></canvas></div>
   </div>
+
+  <!-- Firebase (módulos) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onChildAdded, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+    // 🔧 CONFIGURA TU PROYECTO
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
+      authDomain: "monitorio-4e133.firebaseapp.com",
+      databaseURL: "https://monitorio-4e133-default-rtdb.firebaseio.com",
+      projectId: "monitorio-4e133",
+      storageBucket: "monitorio-4e133.appspot.com",
+      messagingSenderId: "515981874171",
+      appId: "1:515981874171:web:98dbf980030fb84e9db15e",
+      measurementId: "G-MBWHMXRWBJ"
+    };
+
+    // Inicializa Firebase
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+    const lecturasRef = ref(db, "lecturas");
+
+    // ==== buffers para gráficos ====
+    const MAX_PUNTOS = 60; // últimos 60 puntos aprox
+    const labels = [];
+    const tempData = [];
+    const humData  = [];
+    const presData = [];
+    const ruidoData= [];
+
+    function trimArrays() {
+      const arrs = [labels, tempData, humData, presData, ruidoData];
+      arrs.forEach(a => { if (a.length > MAX_PUNTOS) a.shift(); });
+    }
+
+    // ==== crear charts (uno por sensor) ====
+    function makeLineChart(ctx, label, data) {
+      return new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets: [{ label, data, fill: false }] },
+        options: {
+          responsive: true,
+          animation: false,
+          interaction: { mode: 'nearest', intersect: false },
+          scales: { x: { ticks: { autoSkip: true, maxTicksLimit: 8 } } }
+        }
+      });
+    }
+
+    const chartTemp  = makeLineChart(document.getElementById('chartTemp').getContext('2d'),  "Temperatura (°C)", tempData);
+    const chartHum   = makeLineChart(document.getElementById('chartHum').getContext('2d'),   "Humedad (%)",      humData);
+    const chartPres  = makeLineChart(document.getElementById('chartPres').getContext('2d'),  "Presión (hPa)",    presData);
+    const chartRuido = makeLineChart(document.getElementById('chartRuido').getContext('2d'), "Nivel sonoro (0–100)", ruidoData);
+
+    // ==== escucha en tiempo real ====
+    onChildAdded(lecturasRef, (snap) => {
+      const d = snap.val();
+      const now = new Date();
+      const hh = now.toLocaleTimeString();
+
+      // tarjetas
+      if (typeof d.temperatura   !== "undefined") document.getElementById("vTemp").textContent  = `${Number(d.temperatura).toFixed(2)} °C`;
+      if (typeof d.humedad       !== "undefined") document.getElementById("vHum").textContent   = `${Number(d.humedad).toFixed(2)} %`;
+      if (typeof d.presion       !== "undefined") document.getElementById("vPres").textContent  = `${Number(d.presion).toFixed(2)} hPa`;
+      if (typeof d.nivel_sonoro  !== "undefined") document.getElementById("vRuido").textContent = `${Number(d.nivel_sonoro).toFixed(2)}`;
+
+      // gráficos
+      labels.push(hh);
+      tempData.push(Number(d.temperatura ?? NaN));
+      humData.push(Number(d.humedad ?? NaN));
+      presData.push(Number(d.presion ?? NaN));
+      ruidoData.push(Number(d.nivel_sonoro ?? NaN));
+
+      trimArrays();
+      chartTemp.update(); chartHum.update(); chartPres.update(); chartRuido.update();
+    });
+
+    // ==== Exportar a Excel ====
+    document.getElementById("btnExcel").addEventListener("click", async () => {
+      try {
+        const snap = await get(child(ref(db), "lecturas"));
+        if (!snap.exists()) {
+          alert("No hay datos en Firebase");
+          return;
+        }
+        const datos = snap.val();
+
+        // Cabeceras
+        const filas = [["Fecha", "Hora", "Temperatura (°C)", "Humedad (%)", "Presión (hPa)", "Nivel sonoro"]];
+        // Recorre cada registro
+        Object.keys(datos).forEach(k => {
+          const r = datos[k] || {};
+          // Si tu ESP32 guarda "fecha" y "hora", se usan; si no, quedan vacías
+          const fecha = r.fecha ?? "";
+          const hora  = r.hora  ?? "";
+          filas.push([
+            fecha,
+            hora,
+            r.temperatura ?? "",
+            r.humedad ?? "",
+            r.presion ?? "",
+            r.nivel_sonoro ?? ""
+          ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(filas);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Lecturas");
+        XLSX.writeFile(wb, "datos_ambientales.xlsx");
+      } catch (e) {
+        console.error(e);
+        alert("Error al descargar Excel");
+      }
+    });
+  </script>
 </body>
 </html>
