@@ -1,76 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Ambiental 🌍</title>
+  <meta charset="UTF-8" />
+  <title>Dashboard Ambiental — Gráficos separados</title>
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SheetJS para exportar a Excel -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      padding: 30px;
-      color: #333;
-    }
-    h1 {
-      display: flex;
-      align-items: center;
-      font-size: 28px;
-    }
-    h1::before {
-      content: "🌍";
-      margin-right: 10px;
-    }
-    .card {
-      background: white;
-      padding: 20px;
-      margin: 10px 0;
-      border-radius: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      font-size: 18px;
-    }
-    #chartContainer {
-      margin-top: 30px;
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-    }
-    button {
-      margin-top: 20px;
-      padding: 10px 15px;
-      font-size: 16px;
-      cursor: pointer;
-      border: none;
-      background: #007bff;
-      color: white;
-      border-radius: 5px;
-    }
-  </style>
-</head>
-<body>
-
-  <h1>Dashboard Ambiental</h1>
-
-  <div class="card">🌡️ Temperatura: <span id="temperatura">-- °C</span></div>
-  <div class="card">💧 Humedad: <span id="humedad">-- %</span></div>
-  <div class="card">📊 Presión: <span id="presion">-- hPa</span></div>
-  <div class="card">🔊 Nivel Sonoro: <span id="nivel_sonoro">-- dB</span></div>
-
-  <div id="chartContainer">
-    <canvas id="graficoDatos" width="400" height="200"></canvas>
-  </div>
-
-  <button onclick="exportarExcel()">📁 Exportar a Excel</button>
-
-  <!-- Firebase -->
+  <!-- Firebase SDK (modules) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getDatabase, ref, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+    // ==== CONFIG FIREBASE (tu proyecto) ====
     const firebaseConfig = {
       apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
       authDomain: "monitorio-4e133.firebaseapp.com",
@@ -82,110 +24,138 @@
       measurementId: "G-MBWHMXRWBJ"
     };
 
+    // ==== INICIO APP ====
     const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const refLecturas = ref(db, "lecturas");
+    const db  = getDatabase(app);
+    const lecturasRef = ref(db, "lecturas");
 
-    // Arrays para el gráfico
+    // ==== ARRAYS de datos ====
+    const MAX_PUNTOS = 60; // últimos 60 puntos
     const labels = [];
-    const temperaturas = [];
-    const humedades = [];
-    const presiones = [];
-    const sonidos = [];
 
-    // Gráfico de línea
-    const ctx = document.getElementById('graficoDatos').getContext('2d');
-    const grafico = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Temperatura (°C)',
-            borderColor: 'red',
-            data: temperaturas,
+    const tempData = [];
+    const humData  = [];
+    const presData = [];
+    const ruidoData= [];
+
+    // ==== Utilidad: recorta arrays ====
+    function trimArrays() {
+      const arrs = [labels, tempData, humData, presData, ruidoData];
+      arrs.forEach(a => { if (a.length > MAX_PUNTOS) a.shift(); });
+    }
+
+    // ==== Crear gráficos (uno por sensor) ====
+    function makeLineChart(ctx, label, data) {
+      return new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label,
+            data,
             fill: false
-          },
-          {
-            label: 'Humedad (%)',
-            borderColor: 'blue',
-            data: humedades,
-            fill: false
-          },
-          {
-            label: 'Presión (hPa)',
-            borderColor: 'green',
-            data: presiones,
-            fill: false
-          },
-          {
-            label: 'Nivel Sonoro (dB)',
-            borderColor: 'orange',
-            data: sonidos,
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'top'
+          }]
+        },
+        options: {
+          responsive: true,
+          animation: false,
+          interaction: { mode: 'nearest', intersect: false },
+          scales: {
+            x: { ticks: { autoSkip: true, maxTicksLimit: 8 } }
           }
         }
-      }
-    });
-
-    const tablaDatos = [];
-
-    onChildAdded(refLecturas, (snapshot) => {
-      const data = snapshot.val();
-      const timestamp = new Date().toLocaleTimeString();
-      const now = new Date();
-      const fecha = now.toLocaleDateString(); // Ej: "9/7/2025"
-      const hora = now.toLocaleTimeString();  // Ej: "16:48:22"
-      const fechaHora = `${fecha} ${hora}`;
-
-      // Mostrar en tarjetas
-      document.getElementById("temperatura").textContent = `${data.temperatura} °C`;
-      document.getElementById("humedad").textContent = `${data.humedad} %`;
-      document.getElementById("presion").textContent = `${data.presion} hPa`;
-      document.getElementById("nivel_sonoro").textContent = `${data.nivel_sonoro} dB`;
-
-      // Agregar al gráfico
-      if (labels.length > 20) {
-        labels.shift();
-        temperaturas.shift();
-        humedades.shift();
-        presiones.shift();
-        sonidos.shift();
-      }
-
-      labels.push(timestamp);
-      temperaturas.push(data.temperatura);
-      humedades.push(data.humedad);
-      presiones.push(data.presion);
-      sonidos.push(data.nivel_sonoro);
-      grafico.update();
-
-      // Guardar para Excel
-      tablaDatos.push({
-        Fecha: fecha,
-        Hora: hora,
-        Temperatura: data.temperatura,
-        Humedad: data.humedad,
-        Presion: data.presion,
-        NivelSonoro: data.nivel_sonoro
       });
-    });
+    }
 
-    // Función para exportar a Excel
-    window.exportarExcel = () => {
-      const ws = XLSX.utils.json_to_sheet(tablaDatos);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Lecturas");
-      XLSX.writeFile(wb, "datos_ambientales.xlsx");
-    };
+    // Obtiene contextos
+    const ctxTemp  = document.getElementById('chartTemp').getContext('2d');
+    const ctxHum   = document.getElementById('chartHum').getContext('2d');
+    const ctxPres  = document.getElementById('chartPres').getContext('2d');
+    const ctxRuido = document.getElementById('chartRuido').getContext('2d');
+
+    // Crea charts
+    const chartTemp  = makeLineChart(ctxTemp,  "Temperatura (°C)", tempData);
+    const chartHum   = makeLineChart(ctxHum,   "Humedad (%)",      humData);
+    const chartPres  = makeLineChart(ctxPres,  "Presión (hPa)",    presData);
+    const chartRuido = makeLineChart(ctxRuido, "Nivel sonoro (0–100)", ruidoData);
+
+    // ==== Escuchar nuevas lecturas ====
+    onChildAdded(lecturasRef, (snap) => {
+      const d = snap.val();
+      const now = new Date();
+      const hh = now.toLocaleTimeString();
+
+      // Actualiza tarjetas
+      if (typeof d.temperatura !== "undefined") document.getElementById("vTemp").textContent  = d.temperatura.toFixed(2) + " °C";
+      if (typeof d.humedad     !== "undefined") document.getElementById("vHum").textContent   = d.humedad.toFixed(2)    + " %";
+      if (typeof d.presion     !== "undefined") document.getElementById("vPres").textContent  = d.presion.toFixed(2)    + " hPa";
+      if (typeof d.nivel_sonoro!== "undefined") document.getElementById("vRuido").textContent = d.nivel_sonoro.toFixed(2);
+
+      // Push a arrays
+      labels.push(hh);
+      tempData.push(Number(d.temperatura ?? NaN));
+      humData.push(Number(d.humedad ?? NaN));
+      presData.push(Number(d.presion ?? NaN));
+      ruidoData.push(Number(d.nivel_sonoro ?? NaN));
+
+      trimArrays();
+
+      // Actualiza charts
+      chartTemp.update();
+      chartHum.update();
+      chartPres.update();
+      chartRuido.update();
+    });
   </script>
+
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --txt:#1f2937; --muted:#6b7280; }
+    * { box-sizing: border-box; }
+    body { margin:0; padding:24px; font-family: system-ui, Arial, sans-serif; background: var(--bg); color: var(--txt); }
+    h1 { margin: 0 0 16px 0; font-size: 24px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: 16px; }
+    .card {
+      background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+    .metric { font-size: 14px; color: var(--muted); }
+    .value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+    .charts { margin-top: 18px; display:grid; grid-template-columns: repeat(2, minmax(300px,1fr)); gap:16px; }
+    canvas { width:100%; height:320px; }
+    @media (max-width: 980px){
+      .grid { grid-template-columns: 1fr 1fr; }
+      .charts { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Dashboard Ambiental — Gráficos por sensor</h1>
+
+  <!-- Tarjetas con valor actual -->
+  <div class="grid">
+    <div class="card">
+      <div class="metric">🌡️ Temperatura</div>
+      <div id="vTemp" class="value">-- °C</div>
+    </div>
+    <div class="card">
+      <div class="metric">💧 Humedad</div>
+      <div id="vHum" class="value">-- %</div>
+    </div>
+    <div class="card">
+      <div class="metric">📊 Presión</div>
+      <div id="vPres" class="value">-- hPa</div>
+    </div>
+    <div class="card">
+      <div class="metric">🔊 Nivel sonoro</div>
+      <div id="vRuido" class="value">--</div>
+    </div>
+  </div>
+
+  <!-- Gráficos separados -->
+  <div class="charts">
+    <div class="card"><canvas id="chartTemp"></canvas></div>
+    <div class="card"><canvas id="chartHum"></canvas></div>
+    <div class="card"><canvas id="chartPres"></canvas></div>
+    <div class="card"><canvas id="chartRuido"></canvas></div>
+  </div>
 </body>
 </html>
