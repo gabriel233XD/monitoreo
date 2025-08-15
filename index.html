@@ -1,287 +1,152 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>SensorEdu</title>
+  <meta charset="UTF-8" />
+  <title>Dashboard Ambiental 🌍</title>
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- SheetJS (Excel) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS para exportar a Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-<style>
-  :root{
-    --bg:#0b1020; --panel:#0f172a; --card:#11172a; --txt:#e5e7eb; --muted:#94a3b8;
-    --primary:#22d3ee; --ring:#1f2937; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
-    --shadow:0 20px 40px rgba(2,6,23,.25);
-  }
-  @media (prefers-color-scheme: light){
-    :root{
-      --bg:#f6f7fb; --panel:#f1f5f9; --card:#ffffff; --txt:#0f172a; --muted:#64748b;
-      --primary:#0891b2; --ring:#e2e8f0; --shadow:0 12px 30px rgba(2,6,23,.06);
-    }
-  }
-  *{box-sizing:border-box}
-  body{margin:0; background:var(--bg); color:var(--txt); font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
-  .app{max-width:1200px; margin:0 auto; padding:20px}
-  header{
-    position:sticky; top:0; z-index:20; backdrop-filter: blur(8px);
-    background: color-mix(in oklab, var(--panel) 85%, transparent);
-    border:1px solid var(--ring); border-radius:16px; padding:12px 16px; box-shadow: var(--shadow);
-    display:flex; align-items:center; gap:16px; justify-content:space-between; margin-bottom:16px;
-  }
-  .brand{display:flex; align-items:center; gap:12px}
-  .logo{
-    width:34px; height:34px; border-radius:10px; background: radial-gradient(120% 120% at 0% 0%, var(--primary), #6ee7b7);
-    box-shadow: inset 0 0 0 1px #ffffff22, 0 10px 20px #22d3ee33;
-  }
-  h1{font-size:18px; margin:0}
-  .toolbar{display:flex; gap:8px; flex-wrap:wrap}
-  .btn{
-    border:1px solid var(--ring); background:linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 80%, #0000));
-    color:var(--txt); padding:10px 14px; border-radius:12px; cursor:pointer; transition:transform .05s ease; box-shadow: var(--shadow);
-  }
-  .btn:hover{transform: translateY(-1px)}
-  .btn.primary{border-color: color-mix(in oklab, var(--primary) 60%, var(--ring)); background: color-mix(in oklab, var(--primary) 15%, var(--card));}
-  .btn.ghost{background:transparent}
-  .grid{display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap:16px}
-  .card{
-    background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 80%, #0000));
-    border:1px solid var(--ring); border-radius:18px; padding:16px; box-shadow: var(--shadow);
-  }
-  .metric{font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px}
-  .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring); color:var(--muted)}
-  .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 60%, var(--ring)); background: color-mix(in oklab, var(--ok) 15%, transparent)}
-  .chip.warn{color:var(--warn); border-color: color-mix(in oklab, var(--warn) 60%, var(--ring)); background: color-mix(in oklab, var(--warn) 15%, transparent)}
-  .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 60%, var(--ring)); background: color-mix(in oklab, var(--bad) 15%, transparent)}
-  .value{font-size:28px; font-weight:800; margin-top:8px}
-  .hint{margin-top:8px; font-size:12px; color:var(--muted)}
-  .charts{margin-top:16px; display:grid; grid-template-columns: repeat(2, minmax(300px,1fr)); gap:16px}
-  canvas{width:100%; height:320px}
-  .controls{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .ring{outline:2px solid transparent}
-  .alert{outline:2px solid var(--bad); outline-offset: -1px}
-  footer{margin-top:18px; color:var(--muted); font-size:12px; text-align:center}
-
-  .filter-bar{margin:12px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-  .input{appearance:none; border:1px solid var(--ring); background:var(--card); color:var(--txt);
-    padding:10px 12px; border-radius:12px; box-shadow: var(--shadow); }
-  @media (max-width: 1000px){ .grid, .charts{grid-template-columns: 1fr 1fr} }
-  @media (max-width: 640px){ .grid, .charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
-</style>
+  <style>
+    :root { --card: #fff; --bg: #f2f2f2; --text:#333; }
+    body { font-family: Arial, sans-serif; background: var(--bg); color: var(--text); padding: 28px; }
+    h1 { display:flex; align-items:center; gap:8px; margin:0 0 16px; }
+    h1::before { content:"🌍"; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap:12px; }
+    .card { background: var(--card); padding:16px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); font-size:18px; }
+    .label { opacity:.7; font-size:14px; display:block; margin-bottom:6px; }
+    .value { font-weight:700; font-size:22px; }
+    #chartWrap { margin-top:20px; background:var(--card); padding:16px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    button { margin-top:16px; padding:10px 14px; border:none; border-radius:8px; background:#007bff; color:#fff; cursor:pointer; }
+    button:hover { filter:brightness(0.95); }
+  </style>
 </head>
 <body>
-<div class="app">
+  <h1>Dashboard Ambiental</h1>
 
-  <header>
-    <div class="brand">
-      <div class="logo" aria-hidden="true"></div>
-      <div>
-        <h1>SensorEdu</h1>
-        <div style="font-size:12px; color:var(--muted)">Monitoreo ambiental en tiempo real</div>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button id="btnExcel" class="btn primary">📥 Excel</button>
-      <button id="btnTheme" class="btn ghost">🌓 Tema</button>
-    </div>
-  </header>
-
-  <!-- Tarjetas / KPIs -->
-  <section class="grid">
-    <div id="cardTemp" class="card ring">
-      <div class="metric">🌡️ Temperatura <span id="chipTemp" class="chip">—</span></div>
-      <div id="vTemp" class="value">— °C</div>
-      <div class="hint">Umbral alto: <input id="thrTemp" class="input" type="number" value="30" style="width:90px"> °C</div>
-    </div>
-    <div id="cardHum" class="card ring">
-      <div class="metric">💧 Humedad <span id="chipHum" class="chip">—</span></div>
-      <div id="vHum" class="value">— %</div>
-      <div class="hint">Umbral bajo: <input id="thrHum" class="input" type="number" value="25" style="width:90px"> %</div>
-    </div>
-    <div id="cardPres" class="card ring">
-      <div class="metric">📊 Presión <span id="chipPres" class="chip">—</span></div>
-      <div id="vPres" class="value">— hPa</div>
-      <div class="hint">Rango típico: 980–1030 hPa</div>
-    </div>
-    <div id="cardNoise" class="card ring">
-      <div class="metric">🔊 Nivel sonoro (0–100) <span id="chipNoise" class="chip">—</span></div>
-      <div id="vNoise" class="value">—</div>
-      <div class="hint">Umbral alto: <input id="thrNoise" class="input" type="number" value="70" style="width:90px"></div>
-    </div>
-  </section>
-
-  <!-- Filtro por fecha (opcional) -->
-  <div class="card filter-bar">
-    <strong>Filtrar por fecha</strong>
-    <span style="font-size:12px; color:var(--muted)">(Usa campos <code>fecha</code> y <code>hora</code> si tu ESP32 los envía)</span>
-    <input type="date" id="fromDate" class="input" />
-    <input type="date" id="toDate" class="input" />
-    <button id="btnFiltrar" class="btn">Aplicar</button>
-    <span id="filterWarn" style="font-size:12px; color:var(--muted)"></span>
+  <div class="grid">
+    <div class="card"><span class="label">🌡️ Temperatura</span><span class="value" id="temperatura">-- °C</span></div>
+    <div class="card"><span class="label">💧 Humedad</span><span class="value" id="humedad">-- %</span></div>
+    <div class="card"><span class="label">📊 Presión</span><span class="value" id="presion">-- hPa</span></div>
+    <div class="card"><span class="label">🔊 Nivel Sonoro (Leq 1s)</span><span class="value" id="nivel_sonoro">-- dB</span></div>
+    <div class="card"><span class="label">🌞 UV (Voltaje)</span><span class="value" id="uv_volt">-- V</span></div>
+    <div class="card"><span class="label">🌤️ UV Index (estimado)</span><span class="value" id="uv_index">--</span></div>
   </div>
 
-  <!-- Gráficos -->
-  <section class="charts">
-    <div class="card ring"><canvas id="chartTemp"></canvas></div>
-    <div class="card ring"><canvas id="chartHum"></canvas></div>
-    <div class="card ring"><canvas id="chartPres"></canvas></div>
-    <div class="card ring"><canvas id="chartNoise"></canvas></div>
-  </section>
+  <div id="chartWrap">
+    <canvas id="graficoDatos" height="120"></canvas>
+  </div>
 
-  <footer>© SensorEdu — hecho con ESP32 + Firebase</footer>
+  <button onclick="exportarExcel()">📁 Exportar a Excel</button>
 
-</div>
+  <!-- Firebase + lógica -->
+  <script type="module">
+    // Firebase v10 (modular)
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-<script type="module">
-  // Tema claro/oscuro con persistencia
-  const btnTheme = document.getElementById('btnTheme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const storedTheme = localStorage.getItem('theme');
-  if(storedTheme){ document.documentElement.style.colorScheme = storedTheme; }
-  else{ document.documentElement.style.colorScheme = prefersDark ? 'dark' : 'light'; }
-  btnTheme.onclick = ()=>{
-    const current = document.documentElement.style.colorScheme || (prefersDark?'dark':'light');
-    const next = current === 'dark' ? 'light' : 'dark';
-    document.documentElement.style.colorScheme = next;
-    localStorage.setItem('theme', next);
-    location.reload(); // refrescar colores de charts
-  };
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
+      authDomain: "monitorio-4e133.firebaseapp.com",
+      databaseURL: "https://monitorio-4e133-default-rtdb.firebaseio.com",
+      projectId: "monitorio-4e133",
+      storageBucket: "monitorio-4e133.appspot.com",
+      messagingSenderId: "515981874171",
+      appId: "1:515981874171:web:98dbf980030fb84e9db15e",
+      measurementId: "G-MBWHMXRWBJ"
+    };
 
-  // Firebase
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, onChildAdded, get, child } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
-    authDomain: "monitorio-4e133.firebaseapp.com",
-    databaseURL: "https://monitorio-4e133-default-rtdb.firebaseio.com",
-    projectId: "monitorio-4e133",
-    storageBucket: "monitorio-4e133.appspot.com",
-    messagingSenderId: "515981874171",
-    appId: "1:515981874171:web:98dbf980030fb84e9db15e",
-    measurementId: "G-MBWHMXRWBJ"
-  };
+    // Referencia a la colección de lecturas
+    const lecturasRef = ref(db, "lecturas");
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getDatabase(app);
-  const lecturasRef = ref(db, "lecturas");
+    // --- Gráfico ---
+    const labels = [];
+    const temperaturas = [];
+    const humedades = [];
+    const presiones = [];
+    const sonidos = [];
+    const uvis = [];
 
-  // Buffers
-  const labels=[], tData=[], hData=[], pData=[], nData=[];
-  const tableRows = []; // {fecha, hora, temperatura, humedad, presion, nivel_sonoro}
-  let sample = 0;
-
-  // Funciones utilitarias
-  const trimTo = (arr, max) => { if(arr.length>max) arr.splice(0, arr.length-max); };
-  const MAX_POINTS = 200; // fijo (ya quitamos el selector de puntos)
-  const setText = (id,v)=>document.getElementById(id).textContent=v;
-
-  // Charts
-  const mkChart = (id, label, data)=> new Chart(document.getElementById(id), {
-    type:'line',
-    data:{ labels, datasets:[{ label, data, borderWidth:2, pointRadius:0, tension:.25, fill:false }] },
-    options:{
-      responsive:true, animation:false,
-      plugins:{ legend:{ labels:{ color:getComputedStyle(document.body).color } } },
-      scales:{
-        x:{ title:{ display:true, text:'Muestra', color:getComputedStyle(document.body).color },
-            grid:{ color:getComputedStyle(document.body).color+'22' },
-            ticks:{ color:getComputedStyle(document.body).color }
-        },
-        y:{ grid:{ color:getComputedStyle(document.body).color+'22' },
-            ticks:{ color:getComputedStyle(document.body).color }
+    const ctx = document.getElementById('graficoDatos').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Temp (°C)', data: temperaturas, borderColor: 'red',   borderWidth: 2, fill: false, tension:.2 },
+          { label: 'Humedad (%)', data: humedades, borderColor: 'blue',  borderWidth: 2, fill: false, tension:.2 },
+          { label: 'Presión (hPa)', data: presiones, borderColor: 'green', borderWidth: 2, fill: false, tension:.2 },
+          { label: 'Leq (dB)', data: sonidos, borderColor: 'orange', borderWidth: 2, fill: false, tension:.2 },
+          { label: 'UV Index', data: uvis, borderColor: 'purple', borderWidth: 2, fill: false, tension:.2 },
+        ]
+      },
+      options: {
+        responsive: true,
+        animation:false,
+        plugins: { legend: { position: 'top' } },
+        scales: {
+          x: { ticks: { autoSkip: true, maxTicksLimit: 8 } }
         }
       }
-    }
-  });
-
-  const cTemp  = mkChart('chartTemp','Temperatura (°C)', tData);
-  const cHum   = mkChart('chartHum','Humedad (%)', hData);
-  const cPres  = mkChart('chartPres','Presión (hPa)', pData);
-  const cNoise = mkChart('chartNoise','Nivel sonoro (0–100)', nData);
-
-  // Umbrales y elementos UI
-  const thrTemp  = document.getElementById('thrTemp');
-  const thrHum   = document.getElementById('thrHum');
-  const thrNoise = document.getElementById('thrNoise');
-
-  const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'), vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise');
-  const cardTemp=document.getElementById('cardTemp'), cardHum=document.getElementById('cardHum'), cardPres=document.getElementById('cardPres'), cardNoise=document.getElementById('cardNoise');
-  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'), chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise');
-
-  const setChip=(chip, state)=>{
-    chip.className = 'chip ' + (state||'ok');
-    chip.textContent = state==='bad' ? 'Alerta' : state==='warn' ? 'Atención' : 'OK';
-  };
-  const setAlert=(card, chip, state)=>{
-    card.classList.remove('alert');
-    setChip(chip, state);
-    if(state==='bad') card.classList.add('alert');
-  };
-
-  // Realtime listener
-  onChildAdded(lecturasRef, (snap)=>{
-    const d = snap.val() || {};
-
-    // tarjetas
-    if(d.temperatura!=null) vTemp.textContent  = `${Number(d.temperatura).toFixed(2)} °C`;
-    if(d.humedad!=null)     vHum.textContent   = `${Number(d.humedad).toFixed(2)} %`;
-    if(d.presion!=null)     vPres.textContent  = `${Number(d.presion).toFixed(2)} hPa`;
-    if(d.nivel_sonoro!=null)vNoise.textContent = `${Number(d.nivel_sonoro).toFixed(2)}`;
-
-    // labels & series
-    labels.push(++sample);
-    tData.push(Number(d.temperatura ?? NaN));
-    hData.push(Number(d.humedad ?? NaN));
-    pData.push(Number(d.presion ?? NaN));
-    nData.push(Number(d.nivel_sonoro ?? NaN));
-    [labels,tData,hData,pData,nData].forEach(a=>trimTo(a, MAX_POINTS));
-
-    // alertas
-    const t=+d.temperatura, h=+d.humedad, p=+d.presion, n=+d.nivel_sonoro;
-    if(!isNaN(t)) setAlert(cardTemp, chipTemp, (t>=(+thrTemp.value||30)) ? 'bad' : 'ok');
-    if(!isNaN(h)) setAlert(cardHum,  chipHum,  (h<=(+thrHum.value||25)) ? 'warn': 'ok');
-    if(!isNaN(p)) setAlert(cardPres, chipPres, (p<980||p>1030) ? 'warn' : 'ok');
-    if(!isNaN(n)) setAlert(cardNoise,chipNoise,(n>=(+thrNoise.value||70)) ? 'bad' : 'ok');
-
-    // tabla (Excel) — genera fecha/hora si no vienen del ESP32
-    const now = new Date();
-    const fecha = d.fecha ?? now.toISOString().slice(0,10); // YYYY-MM-DD
-    const hora  = d.hora  ?? now.toTimeString().slice(0,8); // HH:MM:SS
-    tableRows.push({
-      fecha, hora,
-      temperatura: d.temperatura ?? '',
-      humedad:     d.humedad ?? '',
-      presion:     d.presion ?? '',
-      nivel_sonoro:d.nivel_sonoro ?? ''
     });
 
-    // actualizar charts
-    cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
-  });
+    // Datos para Excel
+    const tablaDatos = [];
 
-  // Excel
-  document.getElementById('btnExcel').onclick = ()=>{
-    if(!tableRows.length){ alert('Aún no hay datos para exportar.'); return; }
-    const rows = [["Fecha","Hora","Temperatura (°C)","Humedad (%)","Presión (hPa)","Nivel sonoro"]];
-    tableRows.forEach(r=> rows.push([r.fecha, r.hora, r.temperatura, r.humedad, r.presion, r.nivel_sonoro]));
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
-    XLSX.writeFile(wb, 'SensorEdu_lecturas.xlsx');
-  };
+    onChildAdded(lecturasRef, (snap) => {
+      const d = snap.val();
+      // Toma fecha/hora del cliente; si guardas timestamp en Firebase puedes usarlo en su lugar
+      const now = new Date();
+      const fecha = now.toLocaleDateString();
+      const hora  = now.toLocaleTimeString();
 
-  // Filtro por fecha (informativo; no rehace las series en vivo)
-  document.getElementById('btnFiltrar').onclick = ()=>{
-    const fd = document.getElementById("fromDate").value;
-    const td = document.getElementById("toDate").value;
-    const warn = document.getElementById("filterWarn");
+      // Actualiza tarjetas (si el campo existe)
+      if (d.temperatura !== undefined) document.getElementById('temperatura').textContent = `${Number(d.temperatura).toFixed(2)} °C`;
+      if (d.humedad !== undefined)     document.getElementById('humedad').textContent     = `${Number(d.humedad).toFixed(2)} %`;
+      if (d.presion !== undefined)     document.getElementById('presion').textContent     = `${Number(d.presion).toFixed(2)} hPa`;
+      if (d.nivel_sonoro !== undefined)document.getElementById('nivel_sonoro').textContent= `${Number(d.nivel_sonoro).toFixed(1)} dB`;
+      if (d.uv_volt !== undefined)     document.getElementById('uv_volt').textContent     = `${Number(d.uv_volt).toFixed(3)} V`;
+      if (d.uv_index !== undefined)    document.getElementById('uv_index').textContent    = `${Number(d.uv_index).toFixed(2)}`;
 
-    if(!fd || !td){ warn.textContent="Selecciona fecha de inicio y fin."; return; }
-    const rows = tableRows.filter(r=> r.fecha && r.fecha >= fd && r.fecha <= td);
-    warn.textContent = rows.length ? `Registros en rango: ${rows.length}.` : "No hay registros para ese rango.";
-  };
-</script>
+      // Mantener ventana de los últimos 50 puntos
+      const label = `${hora.split(' ')[0]}`; // solo hora
+      if (labels.length >= 50) {
+        labels.shift(); temperaturas.shift(); humedades.shift(); presiones.shift(); sonidos.shift(); uvis.shift();
+      }
+      labels.push(label);
+      temperaturas.push(Number(d.temperatura ?? NaN));
+      humedades.push(Number(d.humedad ?? NaN));
+      presiones.push(Number(d.presion ?? NaN));
+      sonidos.push(Number(d.nivel_sonoro ?? NaN));
+      uvis.push(Number(d.uv_index ?? NaN));
+      chart.update();
+
+      // Guardar fila para Excel
+      tablaDatos.push({
+        Fecha: fecha,
+        Hora: hora,
+        Temperatura: Number(d.temperatura ?? ''),
+        Humedad: Number(d.humedad ?? ''),
+        Presion: Number(d.presion ?? ''),
+        NivelSonoro_dB: Number(d.nivel_sonoro ?? ''),
+        UV_Volt: Number(d.uv_volt ?? ''),
+        UV_Index: Number(d.uv_index ?? '')
+      });
+    });
+
+    // Exportar a Excel
+    window.exportarExcel = () => {
+      const ws = XLSX.utils.json_to_sheet(tablaDatos);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Lecturas");
+      XLSX.writeFile(wb, "datos_ambientales.xlsx");
+    };
+  </script>
 </body>
 </html>
+
