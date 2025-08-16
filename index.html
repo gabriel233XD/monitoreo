@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>SensorEdu • Dashboard</title>
+<title>SensorEdu • Monitoreo y Comparación</title>
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -12,156 +12,225 @@
 
 <style>
   :root{
-    --bg:#0b1020; --panel:#0f172a; --card:#11172a; --txt:#e5e7eb; --muted:#94a3b8;
-    --primary:#22d3ee; --primary-weak:#22d3ee22; --ring:#1f2937;
-    --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
-    --shadow:0 20px 40px rgba(2,6,23,.25);
+    --bg:#0b1020; --panel:#0f172a; --card:#10172a; --txt:#e6eaf5; --muted:#9fb0d0;
+    --ring:#22304f; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --brand:#22d3ee;
+    --shadow:0 18px 34px rgba(2,6,23,.25);
   }
   @media (prefers-color-scheme: light){
     :root{
-      --bg:#f6f7fb; --panel:#f1f5f9; --card:#ffffff; --txt:#0f172a; --muted:#64748b;
-      --primary:#0891b2; --primary-weak:#0891b222; --ring:#e2e8f0;
-      --ok:#10b981; --warn:#f59e0b; --bad:#ef4444;
-      --shadow:0 12px 30px rgba(2,6,23,.06);
+      --bg:#f6f7fb; --panel:#eef2f7; --card:#ffffff; --txt:#0f172a; --muted:#55627a;
+      --ring:#d8e0eb; --shadow:0 12px 24px rgba(2,6,23,.06); --brand:#0891b2;
+      --ok:#0e9f6e; --warn:#d97706; --bad:#dc2626;
     }
   }
-
   *{box-sizing:border-box}
-  body{margin:0; background:var(--bg); color:var(--txt); font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
-  .app{max-width:1200px; margin:0 auto; padding:20px}
-
-  header{
-    position:sticky; top:0; z-index:20; backdrop-filter: blur(8px);
+  body{margin:0; background:var(--bg); color:var(--txt); font-family: ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; letter-spacing:.2px;}
+  .wrap{max-width:1280px; margin:0 auto; padding:16px}
+  header{position:sticky; top:0; z-index:20; backdrop-filter: blur(8px);
     background: color-mix(in oklab, var(--panel) 85%, transparent);
     border:1px solid var(--ring); border-radius:16px; padding:12px 16px; box-shadow: var(--shadow);
-    display:flex; align-items:center; gap:16px; justify-content:space-between; margin-bottom:16px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+  .brand{display:flex; gap:10px; align-items:center; font-weight:700}
+  .brand .dot{width:10px; height:10px; background:var(--brand); border-radius:999px}
+  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+  .btn,.input,.select{
+    background:var(--card); color:var(--txt); border:1px solid var(--ring);
+    padding:10px 14px; border-radius:12px; box-shadow: var(--shadow)
   }
-  .brand{display:flex; gap:10px; align-items:center;}
-  .brand .dot{width:10px; height:10px; border-radius:50%; background:var(--primary);}
-  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
-  .btn, .select, .input{
-    border:1px solid var(--ring); background:var(--card); color:var(--txt);
-    padding:10px 14px; border-radius:12px; cursor:pointer; box-shadow: var(--shadow);
-  }
-  .btn{transition:transform .05s ease}
+  .btn{cursor:pointer; transition:transform .05s ease}
   .btn:hover{transform: translateY(-1px)}
-  .btn.primary{
-    border-color: color-mix(in oklab, var(--primary) 60%, var(--ring));
-    background: color-mix(in oklab, var(--primary) 15%, var(--card));
-  }
-  .btn.ghost{background:transparent}
-
-  .grid{display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap:16px}
-  .card{
-    background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
-    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow);
-  }
-  .metric{font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px;}
-  .value{font-size:28px; margin:6px 0 8px 0}
-  .chip{
-    font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring);
-    color:var(--muted); background:transparent;
-  }
-  .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 55%, var(--ring));}
-  .chip.warn{color:var(--warn); border-color: color-mix(in oklab, var(--warn) 55%, var(--ring));}
-  .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring));}
-  .hint{font-size:12px; color:var(--muted)}
-  .ring{outline:2px solid transparent}
-  .alert{outline:2px solid var(--bad); outline-offset:-1px}
-
-  .filter-bar{margin:12px 0; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-  table{ width:100%; border-collapse: collapse; font-size:13px; }
-  th, td{ border-bottom:1px solid color-mix(in oklab, var(--ring) 70%, #0000); padding:8px; text-align:left; }
-  th{ color:var(--muted); font-weight:600; }
+  .btn.primary{background:color-mix(in oklab, var(--brand) 12%, var(--card)); border-color: color-mix(in oklab, var(--brand) 45%, var(--ring))}
+  .tabs{display:flex; gap:8px; margin-bottom:12px}
+  .tab{padding:10px 14px; border:1px solid var(--ring); border-radius:12px; background:var(--card); cursor:pointer}
+  .tab.active{outline:2px solid color-mix(in oklab, var(--brand) 55%, var(--ring))}
+  .grid{display:grid; grid-template-columns: repeat(5, minmax(220px,1fr)); gap:16px}
+  .card{background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
+    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow)}
+  .metric{font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px}
+  .value{font-size:30px; margin:6px 0 8px 0; font-weight:700}
+  .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring); color:var(--muted)}
+  .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 55%, var(--ring))}
+  .chip.warn{color:var(--warn); border-color: color-mix(in oklab, var(--warn) 55%, var(--ring))}
+  .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
   .charts{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
-  canvas{ width:100% !important; height:320px !important; }
-
-  @media (max-width: 1000px){ .grid, .charts{grid-template-columns: 1fr 1fr} }
-  @media (max-width: 640px){ .grid, .charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
+  canvas{ width:100% !important; height:320px !important }
+  table{ width:100%; border-collapse: collapse; font-size:13px; }
+  th,td{border-bottom:1px solid color-mix(in oklab, var(--ring) 75%, #0000); padding:8px; text-align:left}
+  th{ color:var(--muted); font-weight:600 }
+  .alert{outline:2px solid var(--bad); outline-offset:-1px}
+  .section{margin-top:16px}
+  .row{display:flex; flex-wrap:wrap; gap:10px; align-items:flex-end}
+  .mini{font-size:12px; color:var(--muted)}
+  @media (max-width:1080px){ .grid{grid-template-columns: 1fr 1fr} }
+  @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
 </style>
 </head>
 <body>
-<div class="app">
+<div class="wrap">
   <header>
-    <div class="brand">
-      <div class="dot"></div>
-      <strong>SensorEdu — Realtime</strong>
-    </div>
+    <div class="brand"><span class="dot"></span> SensorEdu — Realtime & Comparación</div>
     <div class="toolbar">
       <button id="btnExcel" class="btn primary">📥 Exportar Excel</button>
-      <button id="btnTheme" class="btn ghost">🌓 Tema</button>
+      <button id="btnTheme" class="btn">🌓 Tema</button>
     </div>
   </header>
 
-  <!-- KPIs -->
-  <section class="grid">
-    <div id="cardTemp" class="card ring">
-      <div class="metric">🌡️ Temperatura <span id="chipTemp" class="chip ok">OK</span></div>
-      <div id="vTemp" class="value">— °C</div>
-      <div class="hint">Umbral alto: <input id="thrTemp" class="input" type="number" value="30" style="width:90px"> °C</div>
-    </div>
-
-    <div id="cardHum" class="card ring">
-      <div class="metric">💧 Humedad <span id="chipHum" class="chip ok">OK</span></div>
-      <div id="vHum" class="value">— %</div>
-      <div class="hint">Umbral bajo: <input id="thrHum" class="input" type="number" value="25" style="width:90px"> %</div>
-    </div>
-
-    <div id="cardPres" class="card ring">
-      <div class="metric">📊 Presión <span id="chipPres" class="chip ok">OK</span></div>
-      <div id="vPres" class="value">— hPa</div>
-      <div class="hint">Rango normal: 980–1030 hPa</div>
-    </div>
-
-    <div id="cardNoise" class="card ring">
-      <div class="metric">🔊 Nivel sonoro (dB) <span id="chipNoise" class="chip ok">OK</span></div>
-      <div id="vNoise" class="value">—</div>
-      <div class="hint">Umbral alto: <input id="thrNoise" class="input" type="number" value="70" style="width:90px"></div>
-    </div>
-  </section>
-
-  <!-- Filtro por fecha (informativo; afecta la tabla) -->
-  <div class="card filter-bar">
-    <strong>Filtrar tabla por fecha</strong>
-    <span style="font-size:12px; color:var(--muted)">(Usa campos <code>fecha</code> y <code>hora</code> si el ESP32 los envía; si no, se generan)</span>
-    <input type="date" id="fromDate" class="input" />
-    <input type="date" id="toDate" class="input" />
-    <button id="btnFiltrar" class="btn">Aplicar</button>
-    <span id="filterWarn" style="font-size:12px; color:var(--muted)"></span>
+  <!-- Pestañas -->
+  <div class="tabs">
+    <button id="tabLive" class="tab active">⏱ Tiempo real</button>
+    <button id="tabCompare" class="tab">📊 Comparar</button>
   </div>
 
-  <!-- Gráficas -->
-  <section class="charts">
-    <div class="card ring"><canvas id="chartTemp"></canvas></div>
-    <div class="card ring"><canvas id="chartHum"></canvas></div>
-    <div class="card ring"><canvas id="chartPres"></canvas></div>
-    <div class="card ring"><canvas id="chartNoise"></canvas></div>
-  </section>
+  <!-- ============== TIEMPO REAL ============== -->
+  <section id="liveView">
+    <!-- KPIs -->
+    <div class="grid">
+      <div id="cardTemp" class="card">
+        <div class="metric">🌡️ Temperatura <span id="chipTemp" class="chip ok">OK</span></div>
+        <div id="vTemp" class="value">— °C</div>
+        <div class="mini">Umbral alto: <input id="thrTemp" class="input" type="number" value="30" style="width:90px"> °C</div>
+      </div>
 
-  <!-- Tabla -->
-  <section class="card" style="margin-top:16px">
-    <h3 style="margin:6px 0 12px 0;">Últimos registros</h3>
-    <div style="overflow:auto; max-height: 50vh;">
-      <table id="tbl">
-        <thead>
-          <tr>
-            <th>Fecha</th><th>Hora</th><th>Temp (°C)</th><th>Humedad (%)</th><th>Presión (hPa)</th><th>Ruido (dB)</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div id="cardHum" class="card">
+        <div class="metric">💧 Humedad <span id="chipHum" class="chip ok">OK</span></div>
+        <div id="vHum" class="value">— %</div>
+        <div class="mini">Umbral bajo: <input id="thrHum" class="input" type="number" value="25" style="width:90px"> %</div>
+      </div>
+
+      <div id="cardPres" class="card">
+        <div class="metric">📊 Presión <span id="chipPres" class="chip ok">OK</span></div>
+        <div id="vPres" class="value">— hPa</div>
+        <div class="mini">Rango normal: 980–1030 hPa</div>
+      </div>
+
+      <div id="cardNoise" class="card">
+        <div class="metric">🔊 Ruido <span id="chipNoise" class="chip ok">OK</span></div>
+        <div id="vNoise" class="value">— dB</div>
+        <div class="mini">Umbral alto: <input id="thrNoise" class="input" type="number" value="70" style="width:90px"></div>
+      </div>
+
+      <div id="cardUV" class="card">
+        <div class="metric">☀️ UV <span id="chipUV" class="chip ok">OK</span></div>
+        <div id="vUV" class="value">— mW/cm²</div>
+        <div class="mini">Umbral alto: <input id="thrUV" class="input" type="number" value="0.30" step="0.01" style="width:90px"></div>
+      </div>
+    </div>
+
+    <!-- Cargar historial -->
+    <div class="card section">
+      <h3 style="margin:6px 0 12px 0;">Cargar historial en las gráficas</h3>
+      <div class="row">
+        <div>
+          <div class="mini">Desde</div>
+          <input id="histFrom" type="datetime-local" class="input">
+        </div>
+        <div>
+          <div class="mini">Hasta</div>
+          <input id="histTo" type="datetime-local" class="input">
+        </div>
+        <button id="btnHist" class="btn primary">Cargar historial</button>
+        <div id="histInfo" class="mini"></div>
+      </div>
+      <div class="mini">Usa <code>ts_ms</code> (epoch ms) en los firmwares para descargas exactas. Sin eso, se intentará reconstruir con fecha/hora.</div>
+    </div>
+
+    <!-- Gráficas -->
+    <div class="charts section">
+      <div class="card"><canvas id="chartTemp"></canvas></div>
+      <div class="card"><canvas id="chartHum"></canvas></div>
+      <div class="card"><canvas id="chartPres"></canvas></div>
+      <div class="card"><canvas id="chartNoise"></canvas></div>
+      <div class="card" style="grid-column:1/-1"><canvas id="chartUV"></canvas></div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card section">
+      <h3 style="margin:6px 0 12px 0;">Últimos registros</h3>
+      <div style="overflow:auto; max-height: 50vh;">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Fecha</th><th>Hora</th>
+              <th>Temp (°C)</th><th>Humedad (%)</th><th>Presión (hPa)</th><th>Ruido (dB)</th><th>UV (mW/cm²)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="mini">Sugerencia: añade <code>ts_ms</code> (epoch ms) en los dispositivos.</div>
     </div>
   </section>
 
-  <footer>Hecho con 💙 — SensorEdu</footer>
+  <!-- ============== COMPARAR ============== -->
+  <section id="compareView" style="display:none">
+    <div class="card">
+      <h3 style="margin:6px 0 12px 0;">Comparar dos rangos</h3>
+      <div class="row">
+        <div>
+          <div class="mini">Rango A — desde</div>
+          <input id="aFrom" type="datetime-local" class="input">
+        </div>
+        <div>
+          <div class="mini">Rango A — hasta</div>
+          <input id="aTo" type="datetime-local" class="input">
+        </div>
+        <div>
+          <div class="mini">Rango B — desde</div>
+          <input id="bFrom" type="datetime-local" class="input">
+        </div>
+        <div>
+          <div class="mini">Rango B — hasta</div>
+          <input id="bTo" type="datetime-local" class="input">
+        </div>
+        <div>
+          <div class="mini">Métrica</div>
+          <select id="metric" class="select">
+            <option value="temperatura" selected>Temperatura (°C)</option>
+            <option value="humedad">Humedad (%)</option>
+            <option value="presion">Presión (hPa)</option>
+            <option value="nivel_sonoro">Ruido (dB)</option>
+            <option value="uv_mw_cm2">UV (mW/cm²)</option>
+          </select>
+        </div>
+        <div>
+          <div class="mini">Granularidad</div>
+          <select id="bucket" class="select">
+            <option value="hour" selected>Por hora</option>
+            <option value="day">Por día</option>
+            <option value="week">Por semana</option>
+          </select>
+        </div>
+        <button id="btnCompare" class="btn primary">Comparar</button>
+      </div>
+      <div class="mini" id="compareInfo" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card section">
+      <canvas id="chartCompare"></canvas>
+    </div>
+
+    <div class="grid section" style="grid-template-columns: 1fr 1fr">
+      <div class="card">
+        <h4>Resumen A</h4>
+        <div id="summaryA" class="mini">—</div>
+      </div>
+      <div class="card">
+        <h4>Resumen B</h4>
+        <div id="summaryB" class="mini">—</div>
+      </div>
+    </div>
+  </section>
 </div>
 
-<!-- Firebase (v9 modular) -->
+<!-- Firebase + lógica -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import {
+    getDatabase, ref, onChildAdded, query, limitToLast,
+    orderByChild, startAt, endAt, get
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  // CONFIG DE TU PROYECTO (la que ya usabas)
+  /* =================== CONFIG =================== */
   const firebaseConfig = {
     apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
     authDomain: "monitorio-4e133.firebaseapp.com",
@@ -172,163 +241,297 @@
     appId: "1:515981874171:web:98dbf980030fb84e9db15e",
     measurementId: "G-MBWHMXRWBJ"
   };
-
-  // ====== Estado ======
-  const MAX_POINTS = 200; // tope de puntos en charts
-  const labels = [], tData=[], hData=[], pData=[], nData=[];
-  const tableRows = []; // {fecha, hora, temperatura, humedad, presion, nivel_sonoro}
-  let sample = 0;
-
-  // ====== UI refs ======
-  const vTemp = document.getElementById('vTemp');
-  const vHum  = document.getElementById('vHum');
-  const vPres = document.getElementById('vPres');
-  const vNoise= document.getElementById('vNoise');
-
-  const thrTemp  = document.getElementById('thrTemp');
-  const thrHum   = document.getElementById('thrHum');
-  const thrNoise = document.getElementById('thrNoise');
-
-  const cardTemp = document.getElementById('cardTemp');
-  const cardHum  = document.getElementById('cardHum');
-  const cardPres = document.getElementById('cardPres');
-  const cardNoise= document.getElementById('cardNoise');
-
-  const chipTemp=document.getElementById('chipTemp');
-  const chipHum =document.getElementById('chipHum');
-  const chipPres=document.getElementById('chipPres');
-  const chipNoise=document.getElementById('chipNoise');
-
-  // Helpers
-  const trimTo = (arr, max) => { if(arr.length>max) arr.splice(0, arr.length-max); };
-  const setChip=(chip, cls)=>{ chip.className='chip '+cls; chip.textContent = cls==='bad'?'Alerta':cls==='warn'?'Atención':'OK'; };
-  const setAlert=(card, chip, cls)=>{ card.classList.toggle('alert', cls==='bad'); setChip(chip, cls||'ok'); };
-
-  // Tema
-  const applyTheme = (force)=>{
-    const stored = localStorage.getItem('theme');
-    document.documentElement.style.colorScheme = force || stored || 'dark';
-  }
-  applyTheme();
-  document.getElementById('btnTheme').onclick = ()=>{
-    const cur = getComputedStyle(document.documentElement).colorScheme;
-    const next = (cur==='dark')?'light':'dark';
-    localStorage.setItem('theme', next);
-    applyTheme(next);
-    // Forzar re-render de charts para tomar colores del tema
-    [cTemp,cHum,cPres,cNoise].forEach(ch => ch.update());
-  };
-
-  // Charts factory
-  const mkChart = (id, label) => new Chart(document.getElementById(id), {
-    type:'line',
-    data:{ labels, datasets:[{ label, data: id==='chartTemp'?tData:id==='chartHum'?hData:id==='chartPres'?pData:nData,
-                               borderWidth:2, pointRadius:0, tension:.25, fill:false }] },
-    options:{ animation:false, responsive:true, maintainAspectRatio:false,
-      scales:{ x:{ ticks:{ maxRotation:0 } } }, plugins:{ legend:{ display:true } }
-    }
-  });
-
-  const cTemp  = mkChart('chartTemp','Temperatura (°C)');
-  const cHum   = mkChart('chartHum','Humedad (%)');
-  const cPres  = mkChart('chartPres','Presión (hPa)');
-  const cNoise = mkChart('chartNoise','Ruido (dB)');
-
-  // Firebase init
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
-  const lecturasRef = ref(db, "lecturas");
 
-  // Tabla
-  const tbody = document.querySelector('#tbl tbody');
+  /* =================== TEMA =================== */
+  const applyTheme=(force)=>{
+    const stored = localStorage.getItem('theme');
+    document.documentElement.style.colorScheme = force || stored || 'dark';
+  };
+  applyTheme();
+  document.getElementById('btnTheme').onclick=()=>{
+    const cur=getComputedStyle(document.documentElement).colorScheme;
+    const next=(cur==='dark')?'light':'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+    [cTemp,cHum,cPres,cNoise,cUV,cmpChart].forEach(ch=>ch && ch.update());
+  };
 
-  onChildAdded(lecturasRef, (snap)=>{
-    const d = snap.val() || {};
+  /* =================== TIEMPO REAL =================== */
+  const MAX_POINTS=200;
+  const labels=[], tData=[], hData=[], pData=[], nData=[], tsUV=[], uvData=[], tableRows=[];
+  let sample=0;
+  const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'), vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
+  const thrTemp=document.getElementById('thrTemp'), thrHum=document.getElementById('thrHum'), thrNoise=document.getElementById('thrNoise'), thrUV=document.getElementById('thrUV');
+  const cardTemp=document.getElementById('cardTemp'), cardHum=document.getElementById('cardHum'), cardPres=document.getElementById('cardPres'), cardNoise=document.getElementById('cardNoise'), cardUV=document.getElementById('cardUV');
+  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'), chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise'), chipUV=document.getElementById('chipUV');
+  const tbody=document.querySelector('#tbl tbody');
+  const trimTo=(a,m)=>{ if(a.length>m) a.splice(0,a.length-m); };
+  const setChip=(c,s)=>{ c.className='chip '+s; c.textContent= s==='bad'?'Alerta': s==='warn'?'Atención':'OK'; };
+  const setAlert=(card,chip,s)=>{ card.classList.toggle('alert', s==='bad'); setChip(chip, s||'ok'); };
+  const nowISO=()=>{ const d=new Date(); return {fecha:d.toISOString().slice(0,10), hora:d.toTimeString().slice(0,8)}; };
+  const parseTS=(d)=>{
+    if(typeof d.ts_ms==='number') return d.ts_ms;
+    if(d.fecha && d.hora){
+      const t = new Date(`${d.fecha}T${d.hora}`).getTime();
+      if(!isNaN(t)) return t;
+    }
+    return NaN;
+  };
 
-    // KPIs
+  const mkChart=(id,label,dataRef=undefined,labelsRef=labels)=> new Chart(document.getElementById(id), {
+    type:'line',
+    data:{ labels: labelsRef, datasets:[{ label, data: dataRef ?? (id==='chartTemp'?tData:id==='chartHum'?hData:id==='chartPres'?pData:nData),
+      borderWidth:2, pointRadius:0, tension:.25, fill:false }] },
+    options:{ animation:false, responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:true } } }
+  });
+  const cTemp=mkChart('chartTemp','Temperatura (°C)');
+  const cHum =mkChart('chartHum','Humedad (%)');
+  const cPres=mkChart('chartPres','Presión (hPa)');
+  const cNoise=mkChart('chartNoise','Ruido (dB)');
+  const cUV  =mkChart('chartUV','UV (mW/cm²)', uvData, tsUV);
+
+  // Realtime: ESP32: /lecturas
+  onChildAdded(query(ref(db,"lecturas"),limitToLast(500)), snap=>{
+    const d=snap.val()||{};
     if(d.temperatura!=null) vTemp.textContent  = `${Number(d.temperatura).toFixed(2)} °C`;
     if(d.humedad!=null)     vHum.textContent   = `${Number(d.humedad).toFixed(2)} %`;
     if(d.presion!=null)     vPres.textContent  = `${Number(d.presion).toFixed(2)} hPa`;
     if(d.nivel_sonoro!=null)vNoise.textContent = `${Number(d.nivel_sonoro).toFixed(1)}`;
 
-    // Series (x = contador simple; si mandas ts_ms, puedes usarlo como etiqueta)
     labels.push(++sample);
     tData.push(Number(d.temperatura ?? NaN));
     hData.push(Number(d.humedad ?? NaN));
     pData.push(Number(d.presion ?? NaN));
     nData.push(Number(d.nivel_sonoro ?? NaN));
-    [labels,tData,hData,pData,nData].forEach(a=>trimTo(a, MAX_POINTS));
+    [labels,tData,hData,pData,nData].forEach(a=>trimTo(a,MAX_POINTS));
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
 
-    // Alertas por umbral
     const t=+d.temperatura, h=+d.humedad, p=+d.presion, n=+d.nivel_sonoro;
-    if(!isNaN(t)) setAlert(cardTemp, chipTemp, (t>=(+thrTemp.value||30)) ? 'bad' : 'ok');
-    if(!isNaN(h)) setAlert(cardHum,  chipHum,  (h<=(+thrHum.value||25)) ? 'warn': 'ok');
-    if(!isNaN(p)) setAlert(cardPres, chipPres, (p<980||p>1030) ? 'warn' : 'ok');
-    if(!isNaN(n)) setAlert(cardNoise,chipNoise,(n>=(+thrNoise.value||70)) ? 'bad' : 'ok');
+    if(!isNaN(t)) setAlert(cardTemp, chipTemp, (t>=(+thrTemp.value||30)) ? 'bad':'ok');
+    if(!isNaN(h)) setAlert(cardHum,  chipHum,  (h<=(+thrHum.value||25)) ? 'warn':'ok');
+    if(!isNaN(p)) setAlert(cardPres, chipPres, (p<980||p>1030) ? 'warn':'ok');
+    if(!isNaN(n)) setAlert(cardNoise,chipNoise,(n>=(+thrNoise.value||70)) ? 'bad':'ok');
 
-    // Tabla (con fecha/hora fallback)
-    const now = new Date();
-    const fecha = d.fecha ?? now.toISOString().slice(0,10);
-    const hora  = d.hora  ?? now.toTimeString().slice(0,8);
-
+    const gen=nowISO();
     tableRows.push({
-      fecha, hora,
-      temperatura: d.temperatura ?? '',
-      humedad:     d.humedad ?? '',
-      presion:     d.presion ?? '',
-      nivel_sonoro:d.nivel_sonoro ?? ''
+      fecha:d.fecha||gen.fecha, hora:d.hora||gen.hora,
+      temperatura:d.temperatura ?? '', humedad:d.humedad ?? '',
+      presion:d.presion ?? '', nivel_sonoro:d.nivel_sonoro ?? '',
+      uv_mw_cm2:''
     });
-    if(tableRows.length>2000) tableRows.splice(0, tableRows.length-2000);
+    if(tableRows.length>2000) tableRows.splice(0,tableRows.length-2000);
+    renderTable();
+  });
 
-    // Pintar últimas 300 filas
+  // Realtime: ESP8266: /lecturas_uv
+  onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(500)), snap=>{
+    const d=snap.val()||{};
+    const value = (typeof d.uv_mw_cm2==='number') ? d.uv_mw_cm2 : NaN;
+
+    if(!Number.isNaN(value)){
+      vUV.textContent = value.toFixed(3);
+      setAlert(cardUV, chipUV, (value>=(+thrUV.value||0.30)) ? 'bad':'ok');
+    }
+
+    tsUV.push(d.ts_ms ? new Date(d.ts_ms).toLocaleTimeString() : String(tsUV.length+1));
+    uvData.push(value);
+    trimTo(tsUV,MAX_POINTS); trimTo(uvData,MAX_POINTS);
+    cUV.update();
+
+    const gen=nowISO();
+    tableRows.push({
+      fecha:d.fecha||gen.fecha, hora:d.hora||gen.hora,
+      temperatura:'', humedad:'', presion:'', nivel_sonoro:'',
+      uv_mw_cm2: value ?? ''
+    });
+    if(tableRows.length>2000) tableRows.splice(0,tableRows.length-2000);
+    renderTable();
+  });
+
+  function renderTable(){
     const last = tableRows.slice(-300);
-    tbody.innerHTML = last.map(r => `
+    document.querySelector('#tbl tbody').innerHTML = last.map(r=>`
       <tr>
         <td>${r.fecha}</td><td>${r.hora}</td>
         <td>${r.temperatura!==''?Number(r.temperatura).toFixed(2):''}</td>
         <td>${r.humedad!==''?Number(r.humedad).toFixed(2):''}</td>
         <td>${r.presion!==''?Number(r.presion).toFixed(2):''}</td>
         <td>${r.nivel_sonoro!==''?Number(r.nivel_sonoro).toFixed(1):''}</td>
+        <td>${r.uv_mw_cm2!==''?Number(r.uv_mw_cm2).toFixed(3):''}</td>
       </tr>
     `).join('');
-  });
-
-  // Exportar Excel (con columna de día)
-  const toDay = (fechaStr)=>{
-    // fechaStr: YYYY-MM-DD
-    return fechaStr;
   }
-  document.getElementById('btnExcel').onclick = ()=>{
+
+  // Excel
+  document.getElementById('btnExcel').onclick=()=>{
     if(!tableRows.length){ alert('Aún no hay datos para exportar.'); return; }
     const rows = tableRows.map(r=>({
-      Fecha: r.fecha,
-      Hora: r.hora,
-      Dia: toDay(r.fecha),
-      Temperatura: r.temperatura,
-      Humedad: r.humedad,
-      Presion: r.presion,
-      Nivel_Sonoro: r.nivel_sonoro
+      Fecha:r.fecha, Hora:r.hora,
+      Temperatura:r.temperatura, Humedad:r.humedad,
+      Presion:r.presion, Nivel_Sonoro:r.nivel_sonoro,
+      UV_mWcm2:r.uv_mw_cm2
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
-    const now = new Date();
-    const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0'), d = String(now.getDate()).padStart(2,'0');
+    const ws=XLSX.utils.json_to_sheet(rows);
+    const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Lecturas');
+    const now=new Date(); const y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0'), d=String(now.getDate()).padStart(2,'0');
     XLSX.writeFile(wb, `SensorEdu_lecturas_${y}-${m}-${d}.xlsx`);
   };
 
-  // Filtro por fecha (informativo; no afecta charts en vivo)
-  document.getElementById('btnFiltrar').onclick = ()=>{
-    const fd = document.getElementById("fromDate").value;
-    const td = document.getElementById("toDate").value;
-    const warn = document.getElementById("filterWarn");
-    if(!fd || !td){ warn.textContent="Selecciona fecha de inicio y fin."; return; }
-    const cnt = tableRows.filter(r => r.fecha && r.fecha >= fd && r.fecha <= td).length;
-    warn.textContent = cnt ? `Registros en rango: ${cnt}.` : "No hay registros para ese rango.";
+  /* =================== CARGAR HISTORIAL EN VIVO =================== */
+  async function fetchRange(node, t0, t1){
+    // Intento eficiente: por ts_ms
+    try{
+      const q = query(ref(db,node), orderByChild('ts_ms'), startAt(t0), endAt(t1));
+      const snap = await get(q);
+      if(snap.exists()) return Object.values(snap.val());
+    }catch(e){}
+    // Fallback: descargar bloque y filtrar
+    const big = await get(query(ref(db,node), limitToLast(30000))); // protege el navegador
+    if(!big.exists()) return [];
+    return Object.values(big.val()).filter(d=>{
+      const ts = parseTS(d);
+      return !isNaN(ts) && ts>=t0 && ts<=t1;
+    });
+  }
+
+  function appendHistoryToLive(list, which){
+    // which='main' -> lecturas, which='uv' -> lecturas_uv
+    // Ordenar por ts
+    list.sort((a,b)=> parseTS(a)-parseTS(b));
+    for(const d of list){
+      if(which==='main'){
+        labels.push(++sample);
+        tData.push(Number(d.temperatura ?? NaN));
+        hData.push(Number(d.humedad ?? NaN));
+        pData.push(Number(d.presion ?? NaN));
+        nData.push(Number(d.nivel_sonoro ?? NaN));
+        [labels,tData,hData,pData,nData].forEach(a=>trimTo(a,MAX_POINTS));
+      }else{
+        const ts = parseTS(d);
+        tsUV.push(isNaN(ts)? String(tsUV.length+1) : new Date(ts).toLocaleTimeString());
+        uvData.push(Number(d.uv_mw_cm2 ?? NaN));
+        trimTo(tsUV,MAX_POINTS); trimTo(uvData,MAX_POINTS);
+      }
+    }
+    cTemp.update(); cHum.update(); cPres.update(); cNoise.update(); cUV.update();
+  }
+
+  document.getElementById('btnHist').onclick = async ()=>{
+    const from = document.getElementById('histFrom').value;
+    const to   = document.getElementById('histTo').value;
+    const info = document.getElementById('histInfo');
+    const t0 = new Date(from).getTime(), t1 = new Date(to).getTime();
+    if(isNaN(t0)||isNaN(t1)||t0>=t1){ info.textContent="Elige un rango válido (desde/hasta)."; return; }
+    info.textContent="Descargando historial…";
+    const [L, UV] = await Promise.all([
+      fetchRange('lecturas', t0, t1),
+      fetchRange('lecturas_uv', t0, t1)
+    ]);
+    appendHistoryToLive(L, 'main');
+    appendHistoryToLive(UV, 'uv');
+    info.textContent=`Historial cargado: lecturas=${L.length}, uv=${UV.length}`;
   };
+
+  /* =================== COMPARAR =================== */
+  // Tabs
+  const liveView   = document.getElementById('liveView');
+  const compareView= document.getElementById('compareView');
+  const tabLive=document.getElementById('tabLive'), tabCompare=document.getElementById('tabCompare');
+  tabLive.onclick=()=>{liveView.style.display=''; compareView.style.display='none'; tabLive.classList.add('active'); tabCompare.classList.remove('active');}
+  tabCompare.onclick=()=>{liveView.style.display='none'; compareView.style.display=''; tabCompare.classList.add('active'); tabLive.classList.remove('active');}
+
+  // Inputs comparación
+  const aFrom=document.getElementById('aFrom'), aTo=document.getElementById('aTo');
+  const bFrom=document.getElementById('bFrom'), bTo=document.getElementById('bTo');
+  const metricSel=document.getElementById('metric'), bucketSel=document.getElementById('bucket');
+  const infoCmp=document.getElementById('compareInfo');
+  const sA=document.getElementById('summaryA'), sB=document.getElementById('summaryB');
+
+  // Chart comparación
+  let cmpChart = new Chart(document.getElementById('chartCompare'), {
+    type:'line',
+    data:{ labels:[], datasets:[
+      {label:'Rango A', data:[], borderWidth:2, pointRadius:0, tension:.25},
+      {label:'Rango B', data:[], borderWidth:2, pointRadius:0, tension:.25}
+    ]},
+    options:{ animation:false, responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true}} }
+  });
+
+  const toMs = s=> s? new Date(s).getTime() : NaN;
+  const bucketKey = (t, kind)=>{
+    const dt = new Date(t);
+    const y=dt.getFullYear(), m=String(dt.getMonth()+1).padStart(2,'0'), d=String(dt.getDate()).padStart(2,'0');
+    if(kind==='day') return `${y}-${m}-${d}`;
+    if(kind==='week'){
+      const tmp=new Date(Date.UTC(y, dt.getMonth(), dt.getDate()));
+      const day=(tmp.getUTCDay()+6)%7; tmp.setUTCDate(tmp.getUTCDate()-day);
+      const y2=tmp.getUTCFullYear(), m2=String(tmp.getUTCMonth()+1).padStart(2,'0'), d2=String(tmp.getUTCDate()).padStart(2,'0');
+      return `sem ${y2}-${m2}-${d2}`;
+    }
+    const hh=String(dt.getHours()).padStart(2,'0'); // hour
+    return `${y}-${m}-${d} ${hh}:00`;
+  };
+  const aggBy = (arr, field, kind)=>{
+    const map = new Map();
+    arr.forEach(d=>{
+      const ts=parseTS(d); if(isNaN(ts)) return;
+      const key=bucketKey(ts, kind);
+      const val = Number(d[field]);
+      if(isNaN(val)) return;
+      const cur = map.get(key) || {sum:0,count:0,max:-Infinity};
+      cur.sum+=val; cur.count++; if(val>cur.max) cur.max=val;
+      map.set(key, cur);
+    });
+    const keys=[...map.keys()].sort((a,b)=> new Date(a)-new Date(b));
+    const avg = keys.map(k=> (map.get(k).sum / map.get(k).count));
+    const max = keys.map(k=> map.get(k).max);
+    return {labels:keys, avg, max};
+  };
+  const avgArr = a => a.reduce((x,y)=>x+y,0)/a.length;
+  const summaryTxt = (label, data)=> data.length? `${label}: prom ${avgArr(data).toFixed(2)}, máx ${Math.max(...data).toFixed(2)}`:'—';
+
+  async function fetchRangeCmp(field, t0, t1){
+    const node = (field==='uv_mw_cm2') ? 'lecturas_uv' : 'lecturas';
+    return fetchRange(node, t0, t1);
+  }
+
+  async function runCompare(){
+    const field = metricSel.value;
+    const kind  = bucketSel.value;              // hour / day / week
+    const a0 = toMs(aFrom.value), a1 = toMs(aTo.value);
+    const b0 = toMs(bFrom.value), b1 = toMs(bTo.value);
+    if([a0,a1,b0,b1].some(isNaN) || a0>=a1 || b0>=b1){ infoCmp.textContent="Completa los cuatro campos con rangos válidos."; return; }
+
+    infoCmp.textContent="Cargando…";
+    const [A,B] = await Promise.all([ fetchRangeCmp(field,a0,a1), fetchRangeCmp(field,b0,b1) ]);
+
+    const aggA = aggBy(A, field, kind);
+    const aggB = aggBy(B, field, kind);
+
+    const allLabels = Array.from(new Set([...aggA.labels, ...aggB.labels])).sort((a,b)=> new Date(a)-new Date(b));
+    const seriesA = allLabels.map(l => { const i=aggA.labels.indexOf(l); return i>=0? aggA.avg[i] : null; });
+    const seriesB = allLabels.map(l => { const i=aggB.labels.indexOf(l); return i>=0? aggB.avg[i] : null; });
+
+    cmpChart.data.labels = allLabels;
+    cmpChart.data.datasets[0].label = 'Rango A';
+    cmpChart.data.datasets[0].data  = seriesA;
+    cmpChart.data.datasets[1].label = 'Rango B';
+    cmpChart.data.datasets[1].data  = seriesB;
+    cmpChart.update();
+
+    document.getElementById('summaryA').textContent = `${summaryTxt('Promedios A', aggA.avg)} | ${summaryTxt('Máximos A', aggA.max)} (n=${A.length})`;
+    document.getElementById('summaryB').textContent = `${summaryTxt('Promedios B', aggB.avg)} | ${summaryTxt('Máximos B', aggB.max)} (n=${B.length})`;
+
+    infoCmp.textContent = `Métrica: ${field} · Granularidad: ${kind} · A: ${new Date(a0).toLocaleString()} → ${new Date(a1).toLocaleString()} · B: ${new Date(b0).toLocaleString()} → ${new Date(b1).toLocaleString()}`;
+  }
+
+  document.getElementById('btnCompare').onclick = runCompare;
 </script>
 </body>
 </html>
+
 
 
 
