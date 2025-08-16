@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -52,7 +51,7 @@
   }
   .btn.ghost{background:transparent}
 
-  .grid{display:grid; grid-template-columns: repeat(4, minmax(220px,1fr)); gap:16px}
+  .grid{display:grid; grid-template-columns: repeat(5, minmax(200px,1fr)); gap:16px}
   .card{
     background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
     border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow);
@@ -77,8 +76,8 @@
   .charts{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
   canvas{ width:100% !important; height:320px !important; }
 
-  @media (max-width: 1000px){ .grid, .charts{grid-template-columns: 1fr 1fr} }
-  @media (max-width: 640px){ .grid, .charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
+  @media (max-width: 1100px){ .grid{grid-template-columns: 1fr 1fr} }
+  @media (max-width: 640px){ .grid{grid-template-columns: 1fr} .charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
 </style>
 </head>
 <body>
@@ -119,12 +118,26 @@
       <div id="vNoise" class="value">—</div>
       <div class="hint">Umbral alto: <input id="thrNoise" class="input" type="number" value="70" style="width:90px"></div>
     </div>
+
+    <!-- KPI UV -->
+    <div id="cardUV" class="card ring">
+      <div class="metric">☀️ UV (mW/cm²) <span id="chipUV" class="chip ok">OK</span></div>
+      <div id="vUV" class="value">—</div>
+      <div class="hint">Umbral alto: <input id="thrUV" class="input" type="number" value="0.30" step="0.01" style="width:90px"></div>
+    </div>
+
+    <!-- GAUGE UV -->
+    <div id="cardUVGauge" class="card ring" style="grid-column: span 2;">
+      <div class="metric">☀️ UV — Medidor (mW/cm²) <span id="chipUVg" class="chip ok">OK</span></div>
+      <div style="height:220px"><canvas id="gaugeUV"></canvas></div>
+      <div class="hint">Escala 0 – <span id="uvMaxLbl">1.00</span> mW/cm² (ajustable en código)</div>
+    </div>
   </section>
 
-  <!-- Filtro por fecha (informativo; afecta la tabla) -->
+  <!-- Filtro por fecha (tabla) -->
   <div class="card filter-bar">
     <strong>Filtrar tabla por fecha</strong>
-    <span style="font-size:12px; color:var(--muted)">(Usa campos <code>fecha</code> y <code>hora</code> si el ESP32 los envía; si no, se generan)</span>
+    <span style="font-size:12px; color:var(--muted)">(Usa campos <code>fecha</code> y <code>hora</code> si el firmware los envía; si no, se generan)</span>
     <input type="date" id="fromDate" class="input" />
     <input type="date" id="toDate" class="input" />
     <button id="btnFiltrar" class="btn">Aplicar</button>
@@ -137,6 +150,7 @@
     <div class="card ring"><canvas id="chartHum"></canvas></div>
     <div class="card ring"><canvas id="chartPres"></canvas></div>
     <div class="card ring"><canvas id="chartNoise"></canvas></div>
+    <div class="card ring" style="grid-column:1/-1"><canvas id="chartUV"></canvas></div>
   </section>
 
   <!-- Tabla -->
@@ -146,7 +160,8 @@
       <table id="tbl">
         <thead>
           <tr>
-            <th>Fecha</th><th>Hora</th><th>Temp (°C)</th><th>Humedad (%)</th><th>Presión (hPa)</th><th>Ruido (dB)</th>
+            <th>Fecha</th><th>Hora</th>
+            <th>Temp (°C)</th><th>Humedad (%)</th><th>Presión (hPa)</th><th>Ruido (dB)</th><th>UV (mW/cm²)</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -160,9 +175,9 @@
 <!-- Firebase (v9 modular) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  // CONFIG DE TU PROYECTO (la que ya usabas)
+  // CONFIG DE TU PROYECTO
   const firebaseConfig = {
     apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
     authDomain: "monitorio-4e133.firebaseapp.com",
@@ -177,33 +192,52 @@
   // ====== Estado ======
   const MAX_POINTS = 200; // tope de puntos en charts
   const labels = [], tData=[], hData=[], pData=[], nData=[];
-  const tableRows = []; // {fecha, hora, temperatura, humedad, presion, nivel_sonoro}
+  const tsUV = [], uvData=[];
+  const tableRows = []; // {fecha, hora, temperatura, humedad, presion, nivel_sonoro, uv_mw_cm2}
   let sample = 0;
+
+  // Gauge config
+  const uvMax = 1.00; // cambia a 2.00 si tu GUVA llega a más
+  document.getElementById('uvMaxLbl').textContent = uvMax.toFixed(2);
 
   // ====== UI refs ======
   const vTemp = document.getElementById('vTemp');
   const vHum  = document.getElementById('vHum');
   const vPres = document.getElementById('vPres');
   const vNoise= document.getElementById('vNoise');
+  const vUV   = document.getElementById('vUV');
 
   const thrTemp  = document.getElementById('thrTemp');
   const thrHum   = document.getElementById('thrHum');
   const thrNoise = document.getElementById('thrNoise');
+  const thrUV    = document.getElementById('thrUV');
 
   const cardTemp = document.getElementById('cardTemp');
   const cardHum  = document.getElementById('cardHum');
   const cardPres = document.getElementById('cardPres');
   const cardNoise= document.getElementById('cardNoise');
+  const cardUV   = document.getElementById('cardUV');
+  const cardUVGauge = document.getElementById('cardUVGauge');
 
-  const chipTemp=document.getElementById('chipTemp');
-  const chipHum =document.getElementById('chipHum');
-  const chipPres=document.getElementById('chipPres');
-  const chipNoise=document.getElementById('chipNoise');
+  const chipTemp = document.getElementById('chipTemp');
+  const chipHum  = document.getElementById('chipHum');
+  const chipPres = document.getElementById('chipPres');
+  const chipNoise= document.getElementById('chipNoise');
+  const chipUV   = document.getElementById('chipUV');
+  const chipUVg  = document.getElementById('chipUVg');
+
+  const tbody = document.querySelector('#tbl tbody');
 
   // Helpers
   const trimTo = (arr, max) => { if(arr.length>max) arr.splice(0, arr.length-max); };
   const setChip=(chip, cls)=>{ chip.className='chip '+cls; chip.textContent = cls==='bad'?'Alerta':cls==='warn'?'Atención':'OK'; };
   const setAlert=(card, chip, cls)=>{ card.classList.toggle('alert', cls==='bad'); setChip(chip, cls||'ok'); };
+  const nowISO = () => {
+    const d = new Date();
+    const fecha = d.toISOString().slice(0,10);
+    const hora  = d.toTimeString().slice(0,8);
+    return {fecha, hora};
+  };
 
   // Tema
   const applyTheme = (force)=>{
@@ -216,14 +250,72 @@
     const next = (cur==='dark')?'light':'dark';
     localStorage.setItem('theme', next);
     applyTheme(next);
-    // Forzar re-render de charts para tomar colores del tema
-    [cTemp,cHum,cPres,cNoise].forEach(ch => ch.update());
+    [cTemp,cHum,cPres,cNoise,cUV,gaugeUVChart].forEach(ch => ch && ch.update());
   };
 
-  // Charts factory
-  const mkChart = (id, label) => new Chart(document.getElementById(id), {
+  // ------- Gauge UV (plugin para texto central) -------
+  const uvCenterText = {
+    id: 'uvCenterText',
+    afterDraw(chart) {
+      const ds = chart.data.datasets?.[0];
+      if(!ds) return;
+      const val = Number(ds.data?.[0] ?? 0);
+      const {ctx, chartArea:{width, height}} = chart;
+      ctx.save();
+      ctx.font = '600 22px system-ui,Segoe UI,Roboto';
+      ctx.fillStyle = getComputedStyle(document.body).color;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${val.toFixed(3)} mW/cm²`, width/2, height/1.15);
+      ctx.restore();
+    }
+  };
+  Chart.register(uvCenterText);
+
+  let gaugeUVChart;
+  function makeUVGauge(){
+    const ctx = document.getElementById('gaugeUV').getContext('2d');
+    const baseColor = getComputedStyle(document.documentElement).colorScheme === 'dark' ? '#1f2937' : '#e2e8f0';
+    gaugeUVChart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['UV'],
+        datasets: [{
+          data: [0, uvMax],
+          borderWidth: 0,
+          backgroundColor: ['#22d3ee', baseColor]
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        rotation: -90, circumference: 180,
+        cutout: '70%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } }
+      }
+    });
+  }
+  function setChipUI(chip, cls){ chip.className='chip '+cls; chip.textContent = cls==='bad'?'Alerta':cls==='warn'?'Atención':'OK'; }
+  function setAlertUI(card, chip, cls){ card.classList.toggle('alert', cls==='bad'); setChipUI(chip, cls||'ok'); }
+  function updateUVGauge(value){
+    if (!gaugeUVChart) return;
+    const limited = Math.max(0, Math.min(value, uvMax));
+    const rest = Math.max(0, uvMax - limited);
+    const thr = +thrUV.value || 0.30;
+    const ok = '#10b981', bad = '#ef4444';
+    const color = (limited >= thr) ? bad : ok;
+
+    gaugeUVChart.data.datasets[0].data = [limited, rest];
+    const base = gaugeUVChart.data.datasets[0].backgroundColor[1];
+    gaugeUVChart.data.datasets[0].backgroundColor = [color, base];
+    gaugeUVChart.update();
+
+    setAlertUI(cardUVGauge, chipUVg, (limited>=thr)?'bad':'ok');
+  }
+
+  // Charts de series
+  const mkChart = (id, label, dataRef=undefined, labelsRef=labels) => new Chart(document.getElementById(id), {
     type:'line',
-    data:{ labels, datasets:[{ label, data: id==='chartTemp'?tData:id==='chartHum'?hData:id==='chartPres'?pData:nData,
+    data:{ labels: labelsRef, datasets:[{ label, data: dataRef ?? (id==='chartTemp'?tData:id==='chartHum'?hData:id==='chartPres'?pData:nData),
                                borderWidth:2, pointRadius:0, tension:.25, fill:false }] },
     options:{ animation:false, responsive:true, maintainAspectRatio:false,
       scales:{ x:{ ticks:{ maxRotation:0 } } }, plugins:{ legend:{ display:true } }
@@ -234,16 +326,16 @@
   const cHum   = mkChart('chartHum','Humedad (%)');
   const cPres  = mkChart('chartPres','Presión (hPa)');
   const cNoise = mkChart('chartNoise','Ruido (dB)');
+  const cUV    = mkChart('chartUV','UV (mW/cm²)', uvData, tsUV);
+
+  makeUVGauge();
 
   // Firebase init
   const app = initializeApp(firebaseConfig);
   const db  = getDatabase(app);
-  const lecturasRef = ref(db, "lecturas");
 
-  // Tabla
-  const tbody = document.querySelector('#tbl tbody');
-
-  onChildAdded(lecturasRef, (snap)=>{
+  // ====== Lector ESP32: /lecturas ======
+  onChildAdded(query(ref(db, "lecturas"), limitToLast(500)), (snap)=>{
     const d = snap.val() || {};
 
     // KPIs
@@ -252,7 +344,7 @@
     if(d.presion!=null)     vPres.textContent  = `${Number(d.presion).toFixed(2)} hPa`;
     if(d.nivel_sonoro!=null)vNoise.textContent = `${Number(d.nivel_sonoro).toFixed(1)}`;
 
-    // Series (x = contador simple; si mandas ts_ms, puedes usarlo como etiqueta)
+    // Series (x = contador simple)
     labels.push(++sample);
     tData.push(Number(d.temperatura ?? NaN));
     hData.push(Number(d.humedad ?? NaN));
@@ -261,55 +353,87 @@
     [labels,tData,hData,pData,nData].forEach(a=>trimTo(a, MAX_POINTS));
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
 
-    // Alertas por umbral
+    // Alertas
     const t=+d.temperatura, h=+d.humedad, p=+d.presion, n=+d.nivel_sonoro;
     if(!isNaN(t)) setAlert(cardTemp, chipTemp, (t>=(+thrTemp.value||30)) ? 'bad' : 'ok');
     if(!isNaN(h)) setAlert(cardHum,  chipHum,  (h<=(+thrHum.value||25)) ? 'warn': 'ok');
     if(!isNaN(p)) setAlert(cardPres, chipPres, (p<980||p>1030) ? 'warn' : 'ok');
     if(!isNaN(n)) setAlert(cardNoise,chipNoise,(n>=(+thrNoise.value||70)) ? 'bad' : 'ok');
 
-    // Tabla (con fecha/hora fallback)
-    const now = new Date();
-    const fecha = d.fecha ?? now.toISOString().slice(0,10);
-    const hora  = d.hora  ?? now.toTimeString().slice(0,8);
-
+    // Tabla
+    const gen = nowISO();
     tableRows.push({
-      fecha, hora,
+      fecha: d.fecha || gen.fecha,
+      hora:  d.hora  || gen.hora,
       temperatura: d.temperatura ?? '',
       humedad:     d.humedad ?? '',
       presion:     d.presion ?? '',
-      nivel_sonoro:d.nivel_sonoro ?? ''
+      nivel_sonoro:d.nivel_sonoro ?? '',
+      uv_mw_cm2:   '' // UV llega por el otro listener
     });
     if(tableRows.length>2000) tableRows.splice(0, tableRows.length-2000);
+    renderTable();
+  });
 
-    // Pintar últimas 300 filas
+  // ====== Lector ESP8266: /lecturas_uv ======
+  onChildAdded(query(ref(db, "lecturas_uv"), limitToLast(500)), (snap)=>{
+    const d = snap.val() || {};
+    const value = (typeof d.uv_mw_cm2 === 'number') ? d.uv_mw_cm2 : NaN;
+
+    // KPI + Gauge
+    if(!Number.isNaN(value)){
+      vUV.textContent = value.toFixed(3);
+      updateUVGauge(value);
+    }
+    // Serie UV (su propio eje X)
+    const label = d.ts_ms ? new Date(d.ts_ms).toLocaleTimeString() : String(tsUV.length+1);
+    tsUV.push(label);
+    uvData.push(value);
+    trimTo(tsUV, MAX_POINTS); trimTo(uvData, MAX_POINTS);
+    cUV.update();
+
+    // Alerta tarjeta KPI UV
+    const uvThr = +thrUV.value || 0.30;
+    if(!Number.isNaN(value)) setAlert(cardUV, chipUV, (value>=uvThr) ? 'bad' : 'ok');
+
+    // Tabla (si no trae fecha/hora, generamos)
+    const gen = nowISO();
+    tableRows.push({
+      fecha: d.fecha || gen.fecha,
+      hora:  d.hora  || gen.hora,
+      temperatura: '',
+      humedad: '',
+      presion: '',
+      nivel_sonoro: '',
+      uv_mw_cm2: value ?? ''
+    });
+    if(tableRows.length>2000) tableRows.splice(0, tableRows.length-2000);
+    renderTable();
+  });
+
+  function renderTable(){
     const last = tableRows.slice(-300);
-    tbody.innerHTML = last.map(r => `
+    const html = last.map(r => `
       <tr>
         <td>${r.fecha}</td><td>${r.hora}</td>
         <td>${r.temperatura!==''?Number(r.temperatura).toFixed(2):''}</td>
         <td>${r.humedad!==''?Number(r.humedad).toFixed(2):''}</td>
         <td>${r.presion!==''?Number(r.presion).toFixed(2):''}</td>
         <td>${r.nivel_sonoro!==''?Number(r.nivel_sonoro).toFixed(1):''}</td>
+        <td>${r.uv_mw_cm2!==''?Number(r.uv_mw_cm2).toFixed(3):''}</td>
       </tr>
     `).join('');
-  });
-
-  // Exportar Excel (con columna de día)
-  const toDay = (fechaStr)=>{
-    // fechaStr: YYYY-MM-DD
-    return fechaStr;
+    tbody.innerHTML = html;
   }
+
+  // Exportar Excel
   document.getElementById('btnExcel').onclick = ()=>{
     if(!tableRows.length){ alert('Aún no hay datos para exportar.'); return; }
     const rows = tableRows.map(r=>({
-      Fecha: r.fecha,
-      Hora: r.hora,
-      Dia: toDay(r.fecha),
-      Temperatura: r.temperatura,
-      Humedad: r.humedad,
-      Presion: r.presion,
-      Nivel_Sonoro: r.nivel_sonoro
+      Fecha: r.fecha, Hora: r.hora,
+      Temperatura: r.temperatura, Humedad: r.humedad,
+      Presion: r.presion, Nivel_Sonoro: r.nivel_sonoro,
+      UV_mWcm2: r.uv_mw_cm2
     }));
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
@@ -318,7 +442,7 @@
     XLSX.writeFile(wb, `SensorEdu_lecturas_${y}-${m}-${d}.xlsx`);
   };
 
-  // Filtro por fecha (informativo; no afecta charts en vivo)
+  // Filtro por fecha (solo informa cuántas filas coinciden)
   document.getElementById('btnFiltrar').onclick = ()=>{
     const fd = document.getElementById("fromDate").value;
     const td = document.getElementById("toDate").value;
@@ -330,6 +454,8 @@
 </script>
 </body>
 </html>
+
+
 
 
 
