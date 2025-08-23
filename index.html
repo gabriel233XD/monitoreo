@@ -7,13 +7,11 @@
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<!-- SheetJS (Excel) -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   :root{
     --bg1:#0b1020; --bg2:#0d1630;
-    --panel:#0f172a; --card:#0f172a; --txt:#e6eaf5; --muted:#99a9c7;
+    --panel:#0f172a; --card:#0f172a; --txt:#e6eaf5; --muted:#9fb0d0;
     --ring:#22304f; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --brand:#22d3ee;
     --shadow:0 18px 34px rgba(2,6,23,.25);
   }
@@ -35,6 +33,14 @@
       radial-gradient(900px 600px at -10% 110%, color-mix(in oklab, #68d391 12%, transparent) 0%, transparent 60%),
       linear-gradient(180deg, var(--bg2), var(--bg1));
   }
+  /* malla técnica sutil */
+  body::before{
+    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background:
+      radial-gradient(circle at center, color-mix(in oklab, var(--brand) 5%, transparent) 1px, transparent 1px) 0 0/22px 22px;
+    opacity:.25;
+  }
+
   .wrap{max-width:1280px; margin:0 auto; padding:16px}
   header{
     position:sticky; top:0; z-index:20; backdrop-filter: blur(8px);
@@ -45,22 +51,36 @@
   .brand{display:flex; gap:10px; align-items:center; font-weight:800}
   .brand .dot{width:12px; height:12px; background:var(--brand); border-radius:999px; box-shadow:0 0 16px color-mix(in oklab, var(--brand) 55%, #0000)}
   .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .btn,.input{background:var(--card); color:var(--txt); border:1px solid var(--ring);
-    padding:10px 14px; border-radius:12px; box-shadow: var(--shadow)}
+  .btn,.input{
+    background:var(--card); color:var(--txt); border:1px solid var(--ring);
+    padding:10px 14px; border-radius:12px; box-shadow: var(--shadow)
+  }
   .btn{cursor:pointer; transition:transform .05s ease}
   .btn:hover{transform: translateY(-1px)}
   .btn.primary{background:color-mix(in oklab, var(--brand) 12%, var(--card)); border-color: color-mix(in oklab, var(--brand) 45%, var(--ring))}
+  .status{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)}
+  .dot-sm{width:10px; height:10px; border-radius:999px; background:var(--warn)}
+  .dot-sm.ok{background:var(--ok)} .dot-sm.bad{background:var(--bad)}
+
   .grid{display:grid; grid-template-columns: repeat(5, minmax(220px,1fr)); gap:16px}
-  .card{background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
-    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow)}
-  .metric{font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px}
-  .value{font-size:30px; margin:6px 0 8px 0; font-weight:700}
+  .card{
+    background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
+    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow)
+  }
+  .metric{font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px; justify-content:space-between}
+  .value{font-size:32px; margin:6px 0 4px 0; font-weight:800}
+  .sub{font-size:12px; color:var(--muted)}
   .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring); color:var(--muted)}
   .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 55%, var(--ring))}
   .chip.warn{color:var(--warn); border-color: color-mix(in oklab, var(--warn) 55%, var(--ring))}
   .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
+  .alert{outline:2px solid var(--bad); outline-offset:-1px}
+
   .charts{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
   canvas{ width:100% !important; height:320px !important }
+
+  @media (max-width:1080px){ .grid{grid-template-columns: 1fr 1fr} }
+  @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
 </style>
 </head>
 <body>
@@ -71,18 +91,61 @@
       <div>LABORATORIO DE MONITOREO ESCOLAR “MARIE CURIE”</div>
     </div>
     <div class="toolbar">
-      <button id="btnExcel" class="btn primary">📥 Exportar Excel</button>
+      <div id="status" class="status"><span id="dot" class="dot-sm"></span><span id="statusTxt">Sin datos</span></div>
       <button id="btnTheme" class="btn">🌓 Tema</button>
     </div>
   </header>
 
   <!-- KPIs -->
   <div class="grid">
-    <div id="cardTemp" class="card"><div class="metric">🌡️ Temperatura <span id="chipTemp" class="chip ok">OK</span></div><div id="vTemp" class="value">— °C</div></div>
-    <div id="cardHum" class="card"><div class="metric">💧 Humedad <span id="chipHum" class="chip ok">OK</span></div><div id="vHum" class="value">— %</div></div>
-    <div id="cardPres" class="card"><div class="metric">📊 Presión <span id="chipPres" class="chip ok">OK</span></div><div id="vPres" class="value">— hPa</div></div>
-    <div id="cardNoise" class="card"><div class="metric">🔊 Ruido <span id="chipNoise" class="chip ok">OK</span></div><div id="vNoise" class="value">— dB</div></div>
-    <div id="cardUV" class="card"><div class="metric">☀️ UV <span id="chipUV" class="chip ok">OK</span></div><div id="vUV" class="value">— mW/cm²</div></div>
+    <div id="cardTemp" class="card">
+      <div class="metric">
+        <span>🌡️ Temperatura</span>
+        <span id="chipTemp" class="chip ok">OK</span>
+      </div>
+      <div id="vTemp" class="value">— °C</div>
+      <div class="sub">Umbral alto: <input id="thrTemp" class="input" type="number" value="30" style="width:90px"> °C
+        · <span id="tUpd">—</span></div>
+    </div>
+
+    <div id="cardHum" class="card">
+      <div class="metric">
+        <span>💧 Humedad</span>
+        <span id="chipHum" class="chip ok">OK</span>
+      </div>
+      <div id="vHum" class="value">— %</div>
+      <div class="sub">Umbral bajo: <input id="thrHum" class="input" type="number" value="25" style="width:90px"> %
+        · <span id="hUpd">—</span></div>
+    </div>
+
+    <div id="cardPres" class="card">
+      <div class="metric">
+        <span>📊 Presión</span>
+        <span id="chipPres" class="chip ok">OK</span>
+      </div>
+      <div id="vPres" class="value">— hPa</div>
+      <div class="sub">Rango normal: 980–1030 hPa · <span id="pUpd">—</span></div>
+    </div>
+
+    <div id="cardNoise" class="card">
+      <div class="metric">
+        <span>🔊 Ruido</span>
+        <span id="chipNoise" class="chip ok">OK</span>
+      </div>
+      <div id="vNoise" class="value">— dB</div>
+      <div class="sub">Umbral alto: <input id="thrNoise" class="input" type="number" value="70" style="width:90px">
+        · <span id="nUpd">—</span></div>
+    </div>
+
+    <div id="cardUV" class="card">
+      <div class="metric">
+        <span>☀️ UV</span>
+        <span id="chipUV" class="chip ok">OK</span>
+      </div>
+      <div id="vUV" class="value">— mW/cm²</div>
+      <div class="sub">Umbral alto: <input id="thrUV" class="input" type="number" value="0.30" step="0.01" style="width:90px">
+        · <span id="uUpd">—</span></div>
+    </div>
   </div>
 
   <!-- Gráficas -->
@@ -100,6 +163,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+  /* ====== CONFIG ====== */
   const firebaseConfig = {
     apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
     authDomain: "monitorio-4e133.firebaseapp.com",
@@ -112,35 +176,135 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  // KPIs
+  /* ====== TEMA ====== */
+  const applyTheme=(force)=>{
+    const stored = localStorage.getItem('theme');
+    document.documentElement.style.colorScheme = force || stored || 'dark';
+  };
+  applyTheme();
+  document.getElementById('btnTheme').onclick=()=>{
+    const cur=getComputedStyle(document.documentElement).colorScheme;
+    const next=(cur==='dark')?'light':'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+    [cTemp,cHum,cPres,cNoise,cUV].forEach(ch=>ch && ch.update());
+  };
+
+  /* ====== UI helpers ====== */
+  const statusDot = document.getElementById('dot');
+  const statusTxt = document.getElementById('statusTxt');
+  const setStatus=(ok)=>{ statusDot.className='dot-sm '+(ok?'ok':''); statusTxt.textContent = ok?'Conectado':'Sin datos'; };
+
+  const setChip=(el, state)=>{
+    el.className='chip '+(state||'ok');
+    el.textContent = state==='bad'?'Alerta': state==='warn'?'Atención':'OK';
+  };
+  const setAlert=(card, chip, state)=>{ card.classList.toggle('alert', state==='bad'); setChip(chip, state); };
+  const fmtTime = d => new Date(d).toLocaleTimeString();
+
+  /* ====== STATE ====== */
+  const MAX_POINTS = 120; // más fluido
+  const labels=[], tData=[], hData=[], pData=[], nData=[], uvL=[], uvD=[];
+  const trim=(a)=>{ if(a.length>MAX_POINTS) a.splice(0, a.length-MAX_POINTS); };
+
+  // KPIs & chips
   const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'), vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
+  const thrTemp=document.getElementById('thrTemp'), thrHum=document.getElementById('thrHum'), thrNoise=document.getElementById('thrNoise'), thrUV=document.getElementById('thrUV');
+  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'), chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise'), chipUV=document.getElementById('chipUV');
+  const tUpd=document.getElementById('tUpd'), hUpd=document.getElementById('hUpd'), pUpd=document.getElementById('pUpd'), nUpd=document.getElementById('nUpd'), uUpd=document.getElementById('uUpd');
 
-  // Charts
-  const labels=[], tData=[], hData=[], pData=[], nData=[], uvLabels=[], uvData=[];
-  const trim=(a,m)=>{if(a.length>m)a.splice(0,a.length-m);};
-  const mkChart=(id,label,data,lab=labels)=>new Chart(document.getElementById(id),{type:'line',data:{labels:lab,datasets:[{label,data,borderWidth:2,pointRadius:0,tension:.25,fill:false}]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true}}}});
-  const cTemp=mkChart('chartTemp','Temperatura (°C)',tData);
-  const cHum =mkChart('chartHum','Humedad (%)',hData);
-  const cPres=mkChart('chartPres','Presión (hPa)',pData);
-  const cNoise=mkChart('chartNoise','Ruido (dB)',nData);
-  const cUV  =mkChart('chartUV','UV (mW/cm²)',uvData,uvLabels);
+  /* ====== CHARTS ====== */
+  // Gradiente sutil
+  const mkGrad = (ctx, color) => {
+    const g = ctx.createLinearGradient(0,0,0,300);
+    g.addColorStop(0, color);
+    g.addColorStop(1, 'transparent');
+    return g;
+  };
 
-  // Realtime listeners
-  onChildAdded(query(ref(db,"lecturas"),limitToLast(100)), snap=>{
-    const d=snap.val()||{};
-    if(d.temperatura!=null){vTemp.textContent=`${d.temperatura.toFixed(2)} °C`;tData.push(d.temperatura);labels.push(labels.length+1);}
-    if(d.humedad!=null){vHum.textContent=`${d.humedad.toFixed(2)} %`;hData.push(d.humedad);}
-    if(d.presion!=null){vPres.textContent=`${d.presion.toFixed(2)} hPa`;pData.push(d.presion);}
-    if(d.nivel_sonoro!=null){vNoise.textContent=`${d.nivel_sonoro.toFixed(1)}`;nData.push(d.nivel_sonoro);}
-    [tData,hData,pData,nData,labels].forEach(a=>trim(a,200));
-    cTemp.update();cHum.update();cPres.update();cNoise.update();
+  const baseOpts = {
+    animation:false, responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{display:false}, decimation:{enabled:true, algorithm:'min-max'} },
+    interaction:{ intersect:false, mode:'nearest' },
+    elements:{ point:{ radius:0 }, line:{ borderWidth:2, tension:.25 } },
+    scales:{ x:{ ticks:{display:false} } }
+  };
+
+  const cTemp = new Chart(document.getElementById('chartTemp'), { type:'line',
+    data:{ labels, datasets:[{ label:'Temperatura (°C)', data:tData, borderColor:'#22d3ee', backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'#22d3ee33'), fill:true }] },
+    options: baseOpts
   });
-  onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(100)), snap=>{
-    const d=snap.val()||{};
-    if(d.uv_mw_cm2!=null){vUV.textContent=`${d.uv_mw_cm2.toFixed(3)}`;uvData.push(d.uv_mw_cm2);uvLabels.push(uvLabels.length+1);}
-    trim(uvData,200);trim(uvLabels,200);cUV.update();
+  const cHum = new Chart(document.getElementById('chartHum'), { type:'line',
+    data:{ labels, datasets:[{ label:'Humedad (%)', data:hData, borderColor:'#10b981', backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'#10b98133'), fill:true }] },
+    options: baseOpts
   });
+  const cPres = new Chart(document.getElementById('chartPres'), { type:'line',
+    data:{ labels, datasets:[{ label:'Presión (hPa)', data:pData, borderColor:'#a78bfa', backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'#a78bfa33'), fill:true }] },
+    options: baseOpts
+  });
+  const cNoise = new Chart(document.getElementById('chartNoise'), { type:'line',
+    data:{ labels, datasets:[{ label:'Ruido (dB)', data:nData, borderColor:'#f59e0b', backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'#f59e0b33'), fill:true }] },
+    options: baseOpts
+  });
+  const cUV = new Chart(document.getElementById('chartUV'), { type:'line',
+    data:{ labels:uvL, datasets:[{ label:'UV (mW/cm²)', data:uvD, borderColor:'#ef4444', backgroundColor: ctx=>mkGrad(ctx.chart.ctx,'#ef444433'), fill:true }] },
+    options: {...baseOpts, plugins:{...baseOpts.plugins, legend:{display:true}} }
+  });
+
+  // Batching de actualizaciones para rendimiento
+  let needsUpdate=false;
+  const scheduleUpdate = ()=>{
+    if(needsUpdate) return;
+    needsUpdate=true;
+    setTimeout(()=>{ needsUpdate=false; cTemp.update(); cHum.update(); cPres.update(); cNoise.update(); cUV.update(); }, 500);
+  };
+
+  /* ====== REALTIME LISTENERS ====== */
+  let gotAny=false;
+
+  onChildAdded(query(ref(db,"lecturas"), limitToLast(MAX_POINTS)), snap=>{
+    const d = snap.val()||{};
+    const ts = Date.now();
+
+    // KPIs
+    if(typeof d.temperatura === 'number'){ vTemp.textContent = d.temperatura.toFixed(2)+' °C'; tUpd.textContent = 'act: '+fmtTime(ts); }
+    if(typeof d.humedad === 'number'){ vHum.textContent = d.humedad.toFixed(2)+' %'; hUpd.textContent = 'act: '+fmtTime(ts); }
+    if(typeof d.presion === 'number'){ vPres.textContent = d.presion.toFixed(2)+' hPa'; pUpd.textContent = 'act: '+fmtTime(ts); }
+    if(typeof d.nivel_sonoro === 'number'){ vNoise.textContent = d.nivel_sonoro.toFixed(1); nUpd.textContent = 'act: '+fmtTime(ts); }
+
+    // Series
+    labels.push(labels.length+1);
+    tData.push(Number(d.temperatura ?? NaN));
+    hData.push(Number(d.humedad ?? NaN));
+    pData.push(Number(d.presion ?? NaN));
+    nData.push(Number(d.nivel_sonoro ?? NaN));
+    [labels,tData,hData,pData,nData].forEach(trim);
+
+    // Umbrales
+    const t=+d.temperatura, h=+d.humedad, p=+d.presion, n=+d.nivel_sonoro;
+    if(!isNaN(t)) setAlert(document.getElementById('cardTemp'), chipTemp, (t>=(+thrTemp.value||30))?'bad':'ok');
+    if(!isNaN(h)) setAlert(document.getElementById('cardHum'), chipHum, (h<=(+thrHum.value||25))?'warn':'ok');
+    if(!isNaN(p)) setAlert(document.getElementById('cardPres'), chipPres, ((p<980||p>1030)?'warn':'ok'));
+    if(!isNaN(n)) setAlert(document.getElementById('cardNoise'), chipNoise, (n>=(+thrNoise.value||70))?'bad':'ok');
+
+    gotAny=true; setStatus(true); scheduleUpdate();
+  });
+
+  onChildAdded(query(ref(db,"lecturas_uv"), limitToLast(MAX_POINTS)), snap=>{
+    const d = snap.val()||{};
+    const ts = Date.now();
+    if(typeof d.uv_mw_cm2 === 'number'){
+      vUV.textContent = d.uv_mw_cm2.toFixed(3);
+      uUpd.textContent = 'act: '+fmtTime(ts);
+      uvL.push(uvL.length+1);
+      uvD.push(d.uv_mw_cm2); trim(uvL); trim(uvD);
+      setAlert(document.getElementById('cardUV'), chipUV, (d.uv_mw_cm2>=(+thrUV.value||0.30))?'bad':'ok');
+      gotAny=true; setStatus(true); scheduleUpdate();
+    }
+  });
+
+  // Si en 5s no llegó nada, mostrar “sin datos”
+  setTimeout(()=>{ if(!gotAny) setStatus(false); }, 5000);
 </script>
 </body>
 </html>
-
