@@ -91,7 +91,7 @@
       <div>LABORATORIO DE MONITOREO ESCOLAR “MARIE CURIE”</div>
     </div>
     <div class="toolbar">
-      <button id="btnExcel" class="btn primary">📥 Exportar Excel</button>
+      <button id="btnExcel" class="btn primary">📥 Exportar Excel (historial)</button>
       <button id="btnTheme" class="btn">🌓 Tema</button>
     </div>
   </header>
@@ -193,7 +193,9 @@
   };
 
   /* =================== ESTADO =================== */
-  const MAX_POINTS=200;
+  const MAX_POINTS      = 200;  // puntos en gráficos
+  const MAX_TABLE_ROWS  = 200;  // filas visibles en tabla
+
   const labels=[], tData=[], hData=[], pData=[], nData=[], tsUV=[], uvData=[];
   const tbody=document.querySelector('#tbl tbody');
   const countInfo=document.getElementById('countInfo');
@@ -213,7 +215,7 @@
       const t = new Date(`${d.fecha}T${d.hora}`).getTime();
       if(!isNaN(t)) return t;
     }
-    return NaN;
+    return Date.now(); // fallback para ordenar
   };
 
   /* =================== CHARTS =================== */
@@ -229,9 +231,10 @@
   const cNoise=mkChart('chartNoise','Ruido (dB)');
   const cUV  =mkChart('chartUV','UV (mW/cm²)', uvData, tsUV);
 
-  /* =================== TABLA (orden DESC) =================== */
-  let tableRows = [];                 // todos los registros (mezcla lecturas + uv)
-  const seenKeys = new Set();         // evita duplicados (key de Firebase)
+  /* =================== TABLA (DESC + LIMITADA) =================== */
+  let tableRows = [];           // acumulado (puede crecer, mostramos los primeros N)
+  const seenKeys = new Set();   // evita duplicados por key
+
   function rowHTML(r){
     return `<tr>
       <td>${r.fecha}</td><td>${r.hora}</td>
@@ -243,60 +246,55 @@
     </tr>`;
   }
   function renderTableDESC(){
-    // mapea solo lo visible para performance si hay miles (ajusta si quieres todo literal)
-    const html = tableRows.map(rowHTML).join('');
-    tbody.innerHTML = html;
-    countInfo.textContent = `Registros mostrados: ${tableRows.length}`;
+    const limited = tableRows.slice(0, MAX_TABLE_ROWS); // solo mostramos los primeros N (más recientes)
+    tbody.innerHTML = limited.map(rowHTML).join('');
+    countInfo.textContent = `Mostrando ${limited.length} (total acumulado: ${tableRows.length})`;
   }
   function upsertRowFromLectura(key, d){
     if(seenKeys.has('L:'+key)) return;
     seenKeys.add('L:'+key);
     const gen=nowISO();
-    const ts = parseTS(d) || Date.now();
+    const ts = parseTS(d);
     const r = {
       ts, fecha:d.fecha||gen.fecha, hora:d.hora||gen.hora,
       temperatura:d.temperatura ?? '', humedad:d.humedad ?? '',
       presion:d.presion ?? '', nivel_sonoro:d.nivel_sonoro ?? '',
       uv_mw_cm2:''
     };
-    // insertar manteniendo orden DESC (nuevo primero)
-    tableRows.unshift(r);
+    tableRows.unshift(r); // nuevo arriba
   }
   function upsertRowFromUV(key, d){
     if(seenKeys.has('U:'+key)) return;
     seenKeys.add('U:'+key);
     const gen=nowISO();
-    const ts = parseTS(d) || Date.now();
+    const ts = parseTS(d);
     const r = {
       ts, fecha:d.fecha||gen.fecha, hora:d.hora||gen.hora,
       temperatura:'', humedad:'', presion:'', nivel_sonoro:'',
       uv_mw_cm2: d.uv_mw_cm2 ?? ''
     };
-    tableRows.unshift(r);
+    tableRows.unshift(r); // nuevo arriba
   }
 
-  /* =================== CARGA INICIAL (TODO EL HISTORIAL) =================== */
-  async function loadAll(){
-    // lecturas
-    const L = await get(ref(db,'lecturas'));
+  /* =================== CARGA INICIAL RÁPIDA (sólo últimos N) =================== */
+  async function loadInitial(){
+    const L = await get(query(ref(db,"lecturas"), limitToLast(MAX_TABLE_ROWS)));
     if(L.exists()){
       const obj = L.val();
-      for(const [k,v] of Object.entries(obj)) upsertRowFromLectura(k, v);
+      for(const [k,v] of Object.entries(obj)) upsertRowFromLectura(k,v);
     }
-    // lecturas_uv
-    const U = await get(ref(db,'lecturas_uv'));
+    const U = await get(query(ref(db,"lecturas_uv"), limitToLast(MAX_TABLE_ROWS)));
     if(U.exists()){
       const obj = U.val();
-      for(const [k,v] of Object.entries(obj)) upsertRowFromUV(k, v);
+      for(const [k,v] of Object.entries(obj)) upsertRowFromUV(k,v);
     }
-    // ordenar por timestamp DESC una vez (por seguridad)
+    // ordenar por ts DESC por si acaso
     tableRows.sort((a,b)=> b.ts - a.ts);
     renderTableDESC();
   }
-  await loadAll();
+  await loadInitial();
 
   /* =================== REALTIME =================== */
-  // Tarjetas + charts (igual que antes)
   onChildAdded(query(ref(db,"lecturas"),limitToLast(500)), snap=>{
     const d=snap.val()||{};
     // KPIs
@@ -344,31 +342,61 @@
     renderTableDESC();
   });
 
-  /* =================== EXCEL =================== */
-  document.getElementById('btnExcel').onclick=()=>{
-    if(!tableRows.length){ alert('Aún no hay datos para exportar.'); return; }
-    const rows = tableRows.map(r=>({
-      Fecha:r.fecha, Hora:r.hora,
-      Temperatura:r.temperatura, Humedad:r.humedad,
-      Presion:r.presion, Nivel_Sonoro:r.nivel_sonoro,
-      UV_mWcm2:r.uv_mw_cm2
-    }));
+  /* =================== EXCEL (historial completo bajo demanda) =================== */
+  document.getElementById('btnExcel').onclick=async ()=>{
+    // Descarga TODO del backend sólo cuando exportas
+    const labelBtn = document.getElementById('btnExcel');
+    const prevText = labelBtn.textContent;
+    labelBtn.textContent = "⌛ Preparando Excel…";
+    labelBtn.disabled = true;
+
+    const [L, U] = await Promise.all([
+      get(ref(db,'lecturas')),
+      get(ref(db,'lecturas_uv'))
+    ]);
+
+    const rows = [];
+
+    if(L.exists()){
+      const obj = L.val();
+      for(const v of Object.values(obj)){
+        rows.push({
+          Fecha: v.fecha || '', Hora: v.hora || '',
+          Temperatura: v.temperatura ?? '',
+          Humedad: v.humedad ?? '',
+          Presion: v.presion ?? '',
+          Nivel_Sonoro: v.nivel_sonoro ?? '',
+          UV_mWcm2: ''
+        });
+      }
+    }
+    if(U.exists()){
+      const obj = U.val();
+      for(const v of Object.values(obj)){
+        rows.push({
+          Fecha: v.fecha || '', Hora: v.hora || '',
+          Temperatura: '',
+          Humedad: '',
+          Presion: '',
+          Nivel_Sonoro: '',
+          UV_mWcm2: v.uv_mw_cm2 ?? ''
+        });
+      }
+    }
+
+    // Ordena por fecha/hora si existen (mejor si tus firmwares envían ts_ms)
+    rows.sort((a,b)=> (a.Fecha+a.Hora).localeCompare(b.Fecha+b.Hora));
+
+    if(!rows.length){ alert('No hay datos en Firebase.'); labelBtn.textContent = prevText; labelBtn.disabled=false; return; }
+
     const ws=XLSX.utils.json_to_sheet(rows);
     const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Lecturas');
     const now=new Date(); const y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0'), d=String(now.getDate()).padStart(2,'0');
     XLSX.writeFile(wb, `MarieCurie_lecturas_${y}-${m}-${d}.xlsx`);
+
+    labelBtn.textContent = prevText;
+    labelBtn.disabled = false;
   };
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
