@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
@@ -143,36 +143,96 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
+  // KPI elementos
   const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'),
         vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
 
-  const labels=[], tData=[], hData=[], pData=[], nData=[], uvL=[], uvD=[];
-  const trim=(a)=>{if(a.length>120)a.splice(0,a.length-120);};
-  const mkChart=(id,label,data,lab=labels,color='#22d3ee')=>
-    new Chart(document.getElementById(id),{type:'line',
-      data:{labels:lab,datasets:[{label,data,borderColor:color,fill:false,pointRadius:0,tension:.25}]},
-      options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
-    });
-  const cTemp=mkChart('chartTemp','Temp',tData,labels,'#22d3ee');
-  const cHum=mkChart('chartHum','Hum',hData,labels,'#10b981');
-  const cPres=mkChart('chartPres','Pres',pData,labels,'#a78bfa');
-  const cNoise=mkChart('chartNoise','Noise',nData,labels,'#f59e0b');
-  const cUV=mkChart('chartUV','UV',uvD,uvL,'#ef4444');
+  // Helpers de tiempo
+  const toMillis = (d)=> {
+    if (typeof d.ts_ms === 'number') return d.ts_ms;
+    if (d.fecha && d.hora) {
+      const t = new Date(`${d.fecha}T${d.hora}`).getTime();
+      if (!isNaN(t)) return t;
+    }
+    return Date.now();
+  };
+  const toTimeStr = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
 
-  onChildAdded(query(ref(db,"lecturas"),limitToLast(100)), snap=>{
-    const d=snap.val()||{};
-    if(d.temperatura!=null){vTemp.textContent=`${d.temperatura.toFixed(2)} °C`;tData.push(d.temperatura);}
-    if(d.humedad!=null){vHum.textContent=`${d.humedad.toFixed(2)} %`;hData.push(d.humedad);}
-    if(d.presion!=null){vPres.textContent=`${d.presion.toFixed(2)} hPa`;pData.push(d.presion);}
-    if(d.nivel_sonoro!=null){vNoise.textContent=`${d.nivel_sonoro.toFixed(1)}`;nData.push(d.nivel_sonoro);}
-    labels.push(labels.length+1); [tData,hData,pData,nData,labels].forEach(trim);
+  // Datos y gráficos
+  const MAX = 120;
+  const labels=[], tData=[], hData=[], pData=[], nData=[];
+  const uvLabels=[], uvData=[];
+  const trim=(a)=>{ if(a.length>MAX) a.splice(0, a.length-MAX); };
+
+  const mkChart=(id,label,data,lab,color)=>
+    new Chart(document.getElementById(id),{
+      type:'line',
+      data:{labels:lab,datasets:[{label,data,borderColor:color,backgroundColor:'transparent',pointRadius:0,tension:.25}]},
+      options:{
+        animation:false,responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0, color:'var(--muted)' } },
+                 y:{ ticks:{ color:'var(--muted)' } } }
+      }
+    });
+
+  const cTemp = mkChart('chartTemp','Temp',tData,labels,'#22d3ee');
+  const cHum  = mkChart('chartHum','Hum',hData,labels,'#10b981');
+  const cPres = mkChart('chartPres','Pres',pData,labels,'#a78bfa');
+  const cNoise= mkChart('chartNoise','Noise',nData,labels,'#f59e0b');
+  const cUV   = mkChart('chartUV','UV',uvData,uvLabels,'#ef4444');
+
+  // Realtime: lecturas (Temp/Hum/Pres/Ruido)
+  onChildAdded(query(ref(db,"lecturas"),limitToLast(200)), snap=>{
+    const d = snap.val()||{};
+    const ms = toMillis(d);
+    const timeStr = toTimeStr(ms);
+
+    // KPIs
+    if(d.temperatura!=null) vTemp.textContent = `${Number(d.temperatura).toFixed(2)} °C`;
+    if(d.humedad!=null)     vHum.textContent  = `${Number(d.humedad).toFixed(2)} %`;
+    if(d.presion!=null)     vPres.textContent = `${Number(d.presion).toFixed(2)} hPa`;
+    if(d.nivel_sonoro!=null)vNoise.textContent= `${Number(d.nivel_sonoro).toFixed(1)}`;
+
+    // Series con etiqueta de hora abajo
+    labels.push(timeStr);
+    tData.push(Number(d.temperatura ?? NaN));
+    hData.push(Number(d.humedad ?? NaN));
+    pData.push(Number(d.presion ?? NaN));
+    nData.push(Number(d.nivel_sonoro ?? NaN));
+
+    [labels,tData,hData,pData,nData].forEach(trim);
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
   });
-  onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(100)), snap=>{
-    const d=snap.val()||{};
-    if(d.uv_mw_cm2!=null){vUV.textContent=`${d.uv_mw_cm2.toFixed(3)}`;uvD.push(d.uv_mw_cm2);uvL.push(uvL.length+1);}
-    [uvD,uvL].forEach(trim); cUV.update();
+
+  // Realtime: UV
+  onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(200)), snap=>{
+    const d = snap.val()||{};
+    if(d.uv_mw_cm2==null) return;
+    const ms = toMillis(d);
+    const timeStr = toTimeStr(ms);
+
+    vUV.textContent = `${Number(d.uv_mw_cm2).toFixed(3)}`;
+
+    uvLabels.push(timeStr);
+    uvData.push(Number(d.uv_mw_cm2));
+    [uvLabels,uvData].forEach(trim);
+    cUV.update();
   });
+
+  // Tema
+  const applyTheme=(force)=>{
+    const stored = localStorage.getItem('theme');
+    document.documentElement.style.colorScheme = force || stored || 'dark';
+  };
+  applyTheme();
+  document.getElementById('btnTheme').onclick=()=>{
+    const cur=getComputedStyle(document.documentElement).colorScheme;
+    const next = (cur==='dark') ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    applyTheme(next);
+    [cTemp,cHum,cPres,cNoise,cUV].forEach(ch=>ch && ch.update());
+  };
 </script>
 </body>
 </html>
