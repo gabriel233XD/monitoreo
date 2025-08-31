@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
@@ -7,6 +7,8 @@
 
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<!-- SheetJS para Excel -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
 <style>
   :root{
@@ -49,14 +51,12 @@
   }
   .brand{display:flex; gap:10px; align-items:center; font-weight:800}
   .brand .dot{width:12px; height:12px; background:var(--brand); border-radius:999px; box-shadow:0 0 16px color-mix(in oklab, var(--brand) 55%, #0000)}
-  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-  .btn{background:var(--card); color:var(--txt); border:1px solid var(--ring);
-    padding:10px 14px; border-radius:12px; box-shadow: var(--shadow); cursor:pointer; transition:transform .05s ease}
+  .btn{
+    background:var(--card); color:var(--txt); border:1px solid var(--ring);
+    padding:10px 14px; border-radius:12px; box-shadow: var(--shadow); cursor:pointer; transition:transform .05s ease
+  }
   .btn:hover{transform: translateY(-1px)}
   .btn.primary{background:color-mix(in oklab, var(--brand) 12%, var(--card)); border-color: color-mix(in oklab, var(--brand) 45%, var(--ring))}
-  .status{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted)}
-  .dot-sm{width:10px; height:10px; border-radius:999px; background:var(--warn)}
-  .dot-sm.ok{background:var(--ok)} .dot-sm.bad{background:var(--bad)}
 
   .grid{display:grid; grid-template-columns: repeat(5, minmax(220px,1fr)); gap:16px}
   .card{
@@ -76,7 +76,7 @@
   h3{margin:0 0 8px 0; font-size:16px; font-weight:600; color:var(--muted)}
 
   @media (max-width:1080px){ .grid{grid-template-columns: 1fr 1fr} }
-  @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} .toolbar{justify-content:center} }
+  @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} }
 </style>
 </head>
 <body>
@@ -86,10 +86,7 @@
       <span class="dot"></span>
       <div>LABORATORIO DE MONITOREO ESCOLAR “MARIE CURIE”</div>
     </div>
-    <div class="toolbar">
-      <div id="status" class="status"><span id="dot" class="dot-sm"></span><span id="statusTxt">Sin datos</span></div>
-      <button id="btnTheme" class="btn">🌓 Tema</button>
-    </div>
+    <button id="btnExcel" class="btn primary">📥 Descargar Excel</button>
   </header>
 
   <!-- KPIs -->
@@ -129,7 +126,7 @@
 <!-- Firebase + lógica -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getDatabase, ref, onChildAdded, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+  import { getDatabase, ref, onChildAdded, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
@@ -156,7 +153,7 @@
     }
     return Date.now();
   };
-  const toTimeStr = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  const toTimeHM = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
   // Datos y gráficos
   const MAX = 120;
@@ -186,16 +183,14 @@
   onChildAdded(query(ref(db,"lecturas"),limitToLast(200)), snap=>{
     const d = snap.val()||{};
     const ms = toMillis(d);
-    const timeStr = toTimeStr(ms);
+    const timeHM = toTimeHM(ms);
 
-    // KPIs
     if(d.temperatura!=null) vTemp.textContent = `${Number(d.temperatura).toFixed(2)} °C`;
     if(d.humedad!=null)     vHum.textContent  = `${Number(d.humedad).toFixed(2)} %`;
     if(d.presion!=null)     vPres.textContent = `${Number(d.presion).toFixed(2)} hPa`;
     if(d.nivel_sonoro!=null)vNoise.textContent= `${Number(d.nivel_sonoro).toFixed(1)}`;
 
-    // Series con etiqueta de hora abajo
-    labels.push(timeStr);
+    labels.push(timeHM);
     tData.push(Number(d.temperatura ?? NaN));
     hData.push(Number(d.humedad ?? NaN));
     pData.push(Number(d.presion ?? NaN));
@@ -207,31 +202,85 @@
 
   // Realtime: UV
   onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(200)), snap=>{
-    const d = snap.val()||{};
+    const d=snap.val()||{};
     if(d.uv_mw_cm2==null) return;
     const ms = toMillis(d);
-    const timeStr = toTimeStr(ms);
+    const timeHM = toTimeHM(ms);
 
     vUV.textContent = `${Number(d.uv_mw_cm2).toFixed(3)}`;
 
-    uvLabels.push(timeStr);
+    uvLabels.push(timeHM);
     uvData.push(Number(d.uv_mw_cm2));
     [uvLabels,uvData].forEach(trim);
     cUV.update();
   });
 
-  // Tema
-  const applyTheme=(force)=>{
-    const stored = localStorage.getItem('theme');
-    document.documentElement.style.colorScheme = force || stored || 'dark';
-  };
-  applyTheme();
-  document.getElementById('btnTheme').onclick=()=>{
-    const cur=getComputedStyle(document.documentElement).colorScheme;
-    const next = (cur==='dark') ? 'light' : 'dark';
-    localStorage.setItem('theme', next);
-    applyTheme(next);
-    [cTemp,cHum,cPres,cNoise,cUV].forEach(ch=>ch && ch.update());
+  /* ===================== EXCEL (HISTORIAL COMPLETO) ===================== */
+  document.getElementById('btnExcel').onclick = async ()=>{
+    const btn = document.getElementById('btnExcel');
+    const prev = btn.textContent;
+    btn.textContent = '⌛ Preparando…';
+    btn.disabled = true;
+
+    try{
+      const [L, U] = await Promise.all([
+        get(ref(db, 'lecturas')),
+        get(ref(db, 'lecturas_uv'))
+      ]);
+
+      const rows = [];
+
+      if (L.exists()) {
+        const obj = L.val();
+        for (const v of Object.values(obj)) {
+          rows.push({
+            Fecha: v.fecha || '',
+            Hora:  v.hora  || '',
+            Temperatura: v.temperatura ?? '',
+            Humedad:     v.humedad ?? '',
+            Presion:     v.presion ?? '',
+            Nivel_Sonoro: v.nivel_sonoro ?? '',
+            UV_mWcm2: ''
+          });
+        }
+      }
+      if (U.exists()) {
+        const obj = U.val();
+        for (const v of Object.values(obj)) {
+          rows.push({
+            Fecha: v.fecha || '',
+            Hora:  v.hora  || '',
+            Temperatura: '',
+            Humedad:     '',
+            Presion:     '',
+            Nivel_Sonoro: '',
+            UV_mWcm2: v.uv_mw_cm2 ?? ''
+          });
+        }
+      }
+
+      if (!rows.length) {
+        alert('No hay datos en Firebase.');
+      } else {
+        // Orden por Fecha+Hora (si existen)
+        rows.sort((a,b)=> (a.Fecha+a.Hora).localeCompare(b.Fecha+b.Hora));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
+
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth()+1).padStart(2,'0');
+        const d = String(now.getDate()).padStart(2,'0');
+        XLSX.writeFile(wb, `MarieCurie_lecturas_${y}-${m}-${d}.xlsx`);
+      }
+    }catch(err){
+      console.error(err);
+      alert('Ocurrió un error al generar el Excel.');
+    }finally{
+      btn.textContent = prev;
+      btn.disabled = false;
+    }
   };
 </script>
 </body>
