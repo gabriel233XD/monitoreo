@@ -14,15 +14,14 @@
   :root{
     --bg1:#0b1020; --bg2:#0d1630;
     --panel:#0f172a; --card:#0f172a; --txt:#e6eaf5; --muted:#9fb0d0;
-    --ring:#22304f; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --brand:#22d3ee;
+    --ring:#22304f; --bad:#ef4444; --brand:#22d3ee;
     --shadow:0 18px 34px rgba(2,6,23,.25);
   }
   @media (prefers-color-scheme: light){
     :root{
       --bg1:#eef3fb; --bg2:#e9f1ff;
       --panel:#eef2f7; --card:#ffffff; --txt:#0f172a; --muted:#55627a;
-      --ring:#d8e0eb; --shadow:0 12px 24px rgba(2,6,23,.06); --brand:#0891b2;
-      --ok:#0e9f6e; --warn:#d97706; --bad:#dc2626;
+      --ring:#d8e0eb; --shadow:0 12px 24px rgba(2,6,23,.06); --brand:#0891b2; --bad:#dc2626;
     }
   }
 
@@ -61,15 +60,11 @@
   .grid{display:grid; grid-template-columns: repeat(5, minmax(220px,1fr)); gap:16px}
   .card{
     background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
-    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow)
+    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow); position:relative;
+    transition: box-shadow .2s ease, border-color .2s ease;
   }
   .metric{font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px; justify-content:space-between}
   .value{font-size:32px; margin:6px 0 6px 0; font-weight:800}
-  .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring); color:var(--muted)}
-  .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 55%, var(--ring))}
-  .chip.warn{color:var(--warn); border-color: color-mix(in oklab, var(--warn) 55%, var(--ring))}
-  .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
-  .alert{outline:2px solid var(--bad); outline-offset:-1px}
   .mini{font-size:12px; color:var(--muted)}
   .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
   .input{
@@ -77,15 +72,32 @@
     padding:8px 10px; border-radius:10px; min-width:70px
   }
 
+  /* Sólo ALERTA: brillo rojo animado */
+  .alert{
+    border-color: color-mix(in oklab, var(--bad) 60%, var(--ring));
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--bad) 30%, transparent),
+      0 0 22px color-mix(in oklab, var(--bad) 35%, transparent),
+      var(--shadow);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--bad) 25%, transparent),
+      0 0 16px color-mix(in oklab, var(--bad) 25%, transparent),
+      var(--shadow);
+    }
+    50%{ box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--bad) 45%, transparent),
+      0 0 28px color-mix(in oklab, var(--bad) 55%, transparent),
+      var(--shadow);
+    }
+  }
+
   .charts{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
   canvas{ width:100% !important; height:300px !important }
   h3{margin:0 0 8px 0; font-size:16px; font-weight:600; color:var(--muted)}
 
-  /* Toasts */
-  .toasts{position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:50}
-  .toast{background:var(--card); border:1px solid var(--ring); color:var(--txt); padding:10px 12px; border-radius:12px; box-shadow:var(--shadow); font-size:14px}
-  .toast.warn{border-color: color-mix(in oklab, var(--warn) 55%, var(--ring))}
-  .toast.bad{border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
   @media (max-width:1080px){ .grid{grid-template-columns: 1fr 1fr} }
   @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} }
 </style>
@@ -100,11 +112,11 @@
     <button id="btnExcel" class="btn primary">📥 Descargar Excel</button>
   </header>
 
-  <!-- KPIs (con umbrales editables) -->
+  <!-- KPIs (umbrales editables; sin toasts ni chips) -->
   <div class="grid">
     <!-- Temperatura -->
     <div id="cardTemp" class="card">
-      <div class="metric">🌡️ Temp <span id="chipTemp" class="chip ok">OK</span></div>
+      <div class="metric">🌡️ Temperatura</div>
       <div id="vTemp" class="value">— °C</div>
       <div class="mini row">
         Alto: <input id="thrTempWarn" class="input" type="number" value="30" step="0.5"> /
@@ -114,7 +126,7 @@
 
     <!-- Humedad -->
     <div id="cardHum" class="card">
-      <div class="metric">💧 Hum <span id="chipHum" class="chip ok">OK</span></div>
+      <div class="metric">💧 Humedad</div>
       <div id="vHum" class="value">— %</div>
       <div class="mini row">
         Bajo: <input id="thrHumWarn" class="input" type="number" value="30" step="1"> /
@@ -124,7 +136,7 @@
 
     <!-- Presión -->
     <div id="cardPres" class="card">
-      <div class="metric">📊 Pres <span id="chipPres" class="chip ok">OK</span></div>
+      <div class="metric">📊 Presión</div>
       <div id="vPres" class="value">— hPa</div>
       <div class="mini row">
         Rango: <input id="thrPresLow" class="input" type="number" value="980" step="1"> –
@@ -134,7 +146,7 @@
 
     <!-- Ruido -->
     <div id="cardNoise" class="card">
-      <div class="metric">🔊 Ruido <span id="chipNoise" class="chip ok">OK</span></div>
+      <div class="metric">🔊 Nivel sonoro</div>
       <div id="vNoise" class="value">— dB</div>
       <div class="mini row">
         Alto: <input id="thrNoiseWarn" class="input" type="number" value="70" step="1"> /
@@ -144,7 +156,7 @@
 
     <!-- UV -->
     <div id="cardUV" class="card">
-      <div class="metric">☀️ UV <span id="chipUV" class="chip ok">OK</span></div>
+      <div class="metric">☀️ Radiación UV</div>
       <div id="vUV" class="value">— mW/cm²</div>
       <div class="mini row">
         Alto: <input id="thrUVWarn" class="input" type="number" value="0.30" step="0.01"> /
@@ -178,9 +190,6 @@
   </div>
 </div>
 
-<!-- Toasts -->
-<div class="toasts" id="toasts"></div>
-
 <!-- Firebase + lógica -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -209,28 +218,14 @@
   };
   const toHM = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-  // Toasts
-  const toasts = document.getElementById('toasts');
-  const toast = (msg, level='warn')=>{
-    const el = document.createElement('div');
-    el.className = 'toast '+level;
-    el.textContent = msg;
-    toasts.appendChild(el);
-    setTimeout(()=>{ el.style.opacity = '0'; el.style.transition='opacity .4s'; }, 2600);
-    setTimeout(()=>{ el.remove(); }, 3100);
-  };
-
-  // Estados & UI
+  // UI refs
   const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'),
         vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
-
-  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'),
-        chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise'), chipUV=document.getElementById('chipUV');
 
   const cardTemp=document.getElementById('cardTemp'), cardHum=document.getElementById('cardHum'),
         cardPres=document.getElementById('cardPres'), cardNoise=document.getElementById('cardNoise'), cardUV=document.getElementById('cardUV');
 
-  // Umbrales
+  // Umbrales inputs
   const thr = {
     tempWarn:  document.getElementById('thrTempWarn'),
     tempBad:   document.getElementById('thrTempBad'),
@@ -244,57 +239,17 @@
     uvBad:     document.getElementById('thrUVBad'),
   };
 
-  const setChip = (chip, state)=>{
-    chip.className = 'chip '+(state||'ok');
-    chip.textContent = state==='bad' ? 'Alerta' : state==='warn' ? 'Atención' : 'OK';
-  };
-  const setAlert = (card, chip, state)=>{
+  // Solo encendemos efecto visual en estado CRÍTICO ("bad")
+  const alertIfBad = (card, state)=> {
     card.classList.toggle('alert', state==='bad');
-    setChip(chip, state);
   };
 
-  // Antirrebote de avisos: recuerda último estado
-  const lastState = { temp:'ok', hum:'ok', pres:'ok', noise:'ok', uv:'ok' };
-  const maybeToast = (key, label, state)=>{
-    if(state!==lastState[key]){
-      lastState[key]=state;
-      if(state==='warn') toast(`${label}: Atención`, 'warn');
-      if(state==='bad')  toast(`${label}: ¡Alerta!`, 'bad');
-    }
-  };
-
-  // Lógica de estados por sensor
-  const evalTemp = (t)=>{
-    if (isNaN(t)) return 'ok';
-    if (t >= (+thr.tempBad.value||35)) return 'bad';
-    if (t >= (+thr.tempWarn.value||30)) return 'warn';
-    return 'ok';
-  };
-  const evalHum = (h)=>{
-    if (isNaN(h)) return 'ok';
-    if (h <= (+thr.humBad.value||20)) return 'bad';
-    if (h <= (+thr.humWarn.value||30)) return 'warn';
-    return 'ok';
-  };
-  const evalPres = (p)=>{
-    if (isNaN(p)) return 'ok';
-    const lo = +thr.presLow.value || 980;
-    const hi = +thr.presHigh.value || 1030;
-    if (p < lo || p > hi) return 'warn'; // puedes cambiar a 'bad' si sales mucho del rango
-    return 'ok';
-  };
-  const evalNoise = (n)=>{
-    if (isNaN(n)) return 'ok';
-    if (n >= (+thr.noiseBad.value||85)) return 'bad';
-    if (n >= (+thr.noiseWarn.value||70)) return 'warn';
-    return 'ok';
-  };
-  const evalUV = (u)=>{
-    if (isNaN(u)) return 'ok';
-    if (u >= (+thr.uvBad.value||0.60)) return 'bad';
-    if (u >= (+thr.uvWarn.value||0.30)) return 'warn';
-    return 'ok';
-  };
+  // Evaluadores de estado
+  const evalTemp  = t => isNaN(t) ? 'ok' : (t >= (+thr.tempBad.value||35)) ? 'bad' : (t >= (+thr.tempWarn.value||30)) ? 'warn' : 'ok';
+  const evalHum   = h => isNaN(h) ? 'ok' : (h <= (+thr.humBad.value||20)) ? 'bad' : (h <= (+thr.humWarn.value||30)) ? 'warn' : 'ok';
+  const evalPres  = p => isNaN(p) ? 'ok' : ((p < (+thr.presLow.value||980)) || (p > (+thr.presHigh.value||1030))) ? 'warn' : 'ok';
+  const evalNoise = n => isNaN(n) ? 'ok' : (n >= (+thr.noiseBad.value||85)) ? 'bad' : (n >= (+thr.noiseWarn.value||70)) ? 'warn' : 'ok';
+  const evalUV    = u => isNaN(u) ? 'ok' : (u >= (+thr.uvBad.value||0.60)) ? 'bad' : (u >= (+thr.uvWarn.value||0.30)) ? 'warn' : 'ok';
 
   /* ========= Gráficos ========= */
   const MAX = 120;
@@ -318,13 +273,14 @@
   const cNoise= mkChart('chartNoise','Noise',nData,labels,'#f59e0b');
   const cUV   = mkChart('chartUV','UV',uvData,uvLabels,'#ef4444');
 
-  // Realtime: lecturas principales
+  // Realtime lecturas
+  import { onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
   onChildAdded(query(ref(db,"lecturas"),limitToLast(200)), snap=>{
     const d = snap.val()||{};
     const ms = toMillis(d);
     const hm = toHM(ms);
 
-    // KPIs
     const t = Number(d.temperatura);
     const h = Number(d.humedad);
     const p = Number(d.presion);
@@ -335,7 +291,6 @@
     if (!isNaN(p)) vPres.textContent = `${p.toFixed(2)} hPa`;
     if (!isNaN(n)) vNoise.textContent= `${n.toFixed(1)}`;
 
-    // Series
     labels.push(hm);
     tData.push(!isNaN(t)?t:NaN);
     hData.push(!isNaN(h)?h:NaN);
@@ -344,14 +299,13 @@
     [labels,tData,hData,pData,nData].forEach(trim);
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
 
-    // Alertas
-    const stT = evalTemp(t);    setAlert(cardTemp, chipTemp, stT);    maybeToast('temp','Temperatura',stT);
-    const stH = evalHum(h);     setAlert(cardHum, chipHum, stH);      maybeToast('hum','Humedad',stH);
-    const stP = evalPres(p);    setAlert(cardPres, chipPres, stP);    maybeToast('pres','Presión',stP);
-    const stN = evalNoise(n);   setAlert(cardNoise, chipNoise, stN);  maybeToast('noise','Ruido',stN);
+    // Sólo “alumbrar” en alerta (bad)
+    alertIfBad(cardTemp,  evalTemp(t));
+    alertIfBad(cardHum,   evalHum(h));
+    alertIfBad(cardPres,  evalPres(p));
+    alertIfBad(cardNoise, evalNoise(n));
   });
 
-  // Realtime: UV
   onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(200)), snap=>{
     const d=snap.val()||{};
     if(d.uv_mw_cm2==null) return;
@@ -366,7 +320,7 @@
     [uvLabels,uvData].forEach(trim);
     cUV.update();
 
-    const stU = evalUV(u); setAlert(cardUV, chipUV, stU); maybeToast('uv','UV',stU);
+    alertIfBad(cardUV, evalUV(u));
   });
 
   /* ========= Excel (historial completo) ========= */
