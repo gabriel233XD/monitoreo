@@ -14,14 +14,15 @@
   :root{
     --bg1:#0b1020; --bg2:#0d1630;
     --panel:#0f172a; --card:#0f172a; --txt:#e6eaf5; --muted:#9fb0d0;
-    --ring:#22304f; --bad:#ef4444; --brand:#22d3ee;
+    --ring:#22304f; --ok:#10b981; --bad:#ef4444; --brand:#22d3ee;
     --shadow:0 18px 34px rgba(2,6,23,.25);
   }
   @media (prefers-color-scheme: light){
     :root{
       --bg1:#eef3fb; --bg2:#e9f1ff;
       --panel:#eef2f7; --card:#ffffff; --txt:#0f172a; --muted:#55627a;
-      --ring:#d8e0eb; --shadow:0 12px 24px rgba(2,6,23,.06); --brand:#0891b2; --bad:#dc2626;
+      --ring:#d8e0eb; --shadow:0 12px 24px rgba(2,6,23,.06); --brand:#0891b2;
+      --ok:#0e9f6e; --bad:#dc2626;
     }
   }
 
@@ -60,38 +61,19 @@
   .grid{display:grid; grid-template-columns: repeat(5, minmax(220px,1fr)); gap:16px}
   .card{
     background: linear-gradient(180deg, var(--card), color-mix(in oklab, var(--card) 85%, #0000));
-    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow); position:relative;
-    transition: box-shadow .2s ease, border-color .2s ease;
+    border:1px solid var(--ring); border-radius:16px; padding:14px; box-shadow: var(--shadow)
   }
   .metric{font-size:14px; color:var(--muted); display:flex; align-items:center; gap:8px; justify-content:space-between}
   .value{font-size:32px; margin:6px 0 6px 0; font-weight:800}
+  .chip{font-size:11px; padding:2px 8px; border-radius:999px; border:1px solid var(--ring); color:var(--ok)}
+  .chip.ok{color:var(--ok); border-color: color-mix(in oklab, var(--ok) 55%, var(--ring))}
+  .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
+  .alert{outline:2px solid var(--bad); outline-offset:-1px}
   .mini{font-size:12px; color:var(--muted)}
   .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
   .input{
     background:var(--card); color:var(--txt); border:1px solid var(--ring);
-    padding:8px 10px; border-radius:10px; min-width:70px
-  }
-
-  /* Sólo ALERTA: brillo rojo animado */
-  .alert{
-    border-color: color-mix(in oklab, var(--bad) 60%, var(--ring));
-    box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--bad) 30%, transparent),
-      0 0 22px color-mix(in oklab, var(--bad) 35%, transparent),
-      var(--shadow);
-    animation: pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes pulse{
-    0%,100%{ box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--bad) 25%, transparent),
-      0 0 16px color-mix(in oklab, var(--bad) 25%, transparent),
-      var(--shadow);
-    }
-    50%{ box-shadow:
-      0 0 0 2px color-mix(in oklab, var(--bad) 45%, transparent),
-      0 0 28px color-mix(in oklab, var(--bad) 55%, transparent),
-      var(--shadow);
-    }
+    padding:8px 10px; border-radius:10px; min-width:80px
   }
 
   .charts{display:grid; grid-template-columns: 1fr 1fr; gap:16px}
@@ -112,56 +94,41 @@
     <button id="btnExcel" class="btn primary">📥 Descargar Excel</button>
   </header>
 
-  <!-- KPIs (umbrales editables; sin toasts ni chips) -->
+  <!-- KPIs (un solo umbral por sensor) -->
   <div class="grid">
     <!-- Temperatura -->
     <div id="cardTemp" class="card">
-      <div class="metric">🌡️ Temperatura</div>
+      <div class="metric">🌡️ Temp <span id="chipTemp" class="chip ok">OK</span></div>
       <div id="vTemp" class="value">— °C</div>
-      <div class="mini row">
-        Alto: <input id="thrTempWarn" class="input" type="number" value="30" step="0.5"> /
-        Crítico: <input id="thrTempBad" class="input" type="number" value="35" step="0.5"> °C
-      </div>
+      <div class="mini row">Umbral: <input id="thrTemp" class="input" type="number" value="30" step="0.5"> °C</div>
     </div>
 
     <!-- Humedad -->
     <div id="cardHum" class="card">
-      <div class="metric">💧 Humedad</div>
+      <div class="metric">💧 Hum <span id="chipHum" class="chip ok">OK</span></div>
       <div id="vHum" class="value">— %</div>
-      <div class="mini row">
-        Bajo: <input id="thrHumWarn" class="input" type="number" value="30" step="1"> /
-        Crítico: <input id="thrHumBad" class="input" type="number" value="20" step="1"> %
-      </div>
+      <div class="mini row">Umbral: <input id="thrHum" class="input" type="number" value="30" step="1"> % (alerta si ≤)</div>
     </div>
 
     <!-- Presión -->
     <div id="cardPres" class="card">
-      <div class="metric">📊 Presión</div>
+      <div class="metric">📊 Pres <span id="chipPres" class="chip ok">OK</span></div>
       <div id="vPres" class="value">— hPa</div>
-      <div class="mini row">
-        Rango: <input id="thrPresLow" class="input" type="number" value="980" step="1"> –
-        <input id="thrPresHigh" class="input" type="number" value="1030" step="1"> hPa
-      </div>
+      <div class="mini row">Umbral: <input id="thrPres" class="input" type="number" value="980" step="1"> hPa (alerta si ≤)</div>
     </div>
 
     <!-- Ruido -->
     <div id="cardNoise" class="card">
-      <div class="metric">🔊 Nivel sonoro</div>
+      <div class="metric">🔊 Ruido <span id="chipNoise" class="chip ok">OK</span></div>
       <div id="vNoise" class="value">— dB</div>
-      <div class="mini row">
-        Alto: <input id="thrNoiseWarn" class="input" type="number" value="70" step="1"> /
-        Crítico: <input id="thrNoiseBad" class="input" type="number" value="85" step="1"> dB
-      </div>
+      <div class="mini row">Umbral: <input id="thrNoise" class="input" type="number" value="70" step="1"> dB</div>
     </div>
 
     <!-- UV -->
     <div id="cardUV" class="card">
-      <div class="metric">☀️ Radiación UV</div>
+      <div class="metric">☀️ UV <span id="chipUV" class="chip ok">OK</span></div>
       <div id="vUV" class="value">— mW/cm²</div>
-      <div class="mini row">
-        Alto: <input id="thrUVWarn" class="input" type="number" value="0.30" step="0.01"> /
-        Crítico: <input id="thrUVBad" class="input" type="number" value="0.60" step="0.01"> mW/cm²
-      </div>
+      <div class="mini row">Umbral: <input id="thrUV" class="input" type="number" value="0.30" step="0.01"> mW/cm²</div>
     </div>
   </div>
 
@@ -207,7 +174,7 @@
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
 
-  /* ========= Helpers ========= */
+  /* ===== Helpers de tiempo ===== */
   const toMillis = (d)=> {
     if (typeof d.ts_ms === 'number') return d.ts_ms;
     if (d.fecha && d.hora) {
@@ -218,43 +185,43 @@
   };
   const toHM = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
 
-  // UI refs
+  /* ===== Estados & UI ===== */
   const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'),
         vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
+
+  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'),
+        chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise'), chipUV=document.getElementById('chipUV');
 
   const cardTemp=document.getElementById('cardTemp'), cardHum=document.getElementById('cardHum'),
         cardPres=document.getElementById('cardPres'), cardNoise=document.getElementById('cardNoise'), cardUV=document.getElementById('cardUV');
 
-  // Umbrales inputs
-  const thr = {
-    tempWarn:  document.getElementById('thrTempWarn'),
-    tempBad:   document.getElementById('thrTempBad'),
-    humWarn:   document.getElementById('thrHumWarn'),
-    humBad:    document.getElementById('thrHumBad'),
-    presLow:   document.getElementById('thrPresLow'),
-    presHigh:  document.getElementById('thrPresHigh'),
-    noiseWarn: document.getElementById('thrNoiseWarn'),
-    noiseBad:  document.getElementById('thrNoiseBad'),
-    uvWarn:    document.getElementById('thrUVWarn'),
-    uvBad:     document.getElementById('thrUVBad'),
-  };
+  // Umbrales (un solo input por sensor)
+  const thrTemp  = document.getElementById('thrTemp');
+  const thrHum   = document.getElementById('thrHum');
+  const thrPres  = document.getElementById('thrPres');
+  const thrNoise = document.getElementById('thrNoise');
+  const thrUV    = document.getElementById('thrUV');
 
-  // Solo encendemos efecto visual en estado CRÍTICO ("bad")
-  const alertIfBad = (card, state)=> {
+  const setChip = (chip, state)=>{
+    chip.className = 'chip '+(state||'ok');
+    chip.textContent = state==='bad' ? 'Alerta' : 'OK';
+  };
+  const setAlert = (card, chip, state)=>{
     card.classList.toggle('alert', state==='bad');
+    setChip(chip, state);
   };
 
-  // Evaluadores de estado
-  const evalTemp  = t => isNaN(t) ? 'ok' : (t >= (+thr.tempBad.value||35)) ? 'bad' : (t >= (+thr.tempWarn.value||30)) ? 'warn' : 'ok';
-  const evalHum   = h => isNaN(h) ? 'ok' : (h <= (+thr.humBad.value||20)) ? 'bad' : (h <= (+thr.humWarn.value||30)) ? 'warn' : 'ok';
-  const evalPres  = p => isNaN(p) ? 'ok' : ((p < (+thr.presLow.value||980)) || (p > (+thr.presHigh.value||1030))) ? 'warn' : 'ok';
-  const evalNoise = n => isNaN(n) ? 'ok' : (n >= (+thr.noiseBad.value||85)) ? 'bad' : (n >= (+thr.noiseWarn.value||70)) ? 'warn' : 'ok';
-  const evalUV    = u => isNaN(u) ? 'ok' : (u >= (+thr.uvBad.value||0.60)) ? 'bad' : (u >= (+thr.uvWarn.value||0.30)) ? 'warn' : 'ok';
+  // Evaluadores (solo OK/Alerta)
+  const evalTemp = t => (!isNaN(t) && t >= (+thrTemp.value||30)) ? 'bad' : 'ok';
+  const evalHum  = h => (!isNaN(h) && h <= (+thrHum.value||30)) ? 'bad' : 'ok';
+  const evalPres = p => (!isNaN(p) && p <= (+thrPres.value||980)) ? 'bad' : 'ok';
+  const evalNoise= n => (!isNaN(n) && n >= (+thrNoise.value||70)) ? 'bad' : 'ok';
+  const evalUV   = u => (!isNaN(u) && u >= (+thrUV.value||0.30)) ? 'bad' : 'ok';
 
-  /* ========= Gráficos ========= */
+  /* ===== Gráficos ===== */
   const MAX = 120;
-  const labels=[], tData=[], hData=[], pData=[], nData=[], uvLabels=[], uvData=[];
-  const trim=(a)=>{ if(a.length>MAX) a.splice(0, a.length-MAX); };
+  const labels=[], tData=[], hData=[], pData=[], nData=[], uvLabels=[], uvData[];
+  const trim=a=>{ if(a.length>MAX) a.splice(0, a.length-MAX); };
 
   const mkChart=(id,label,data,lab,color)=>
     new Chart(document.getElementById(id),{
@@ -273,9 +240,7 @@
   const cNoise= mkChart('chartNoise','Noise',nData,labels,'#f59e0b');
   const cUV   = mkChart('chartUV','UV',uvData,uvLabels,'#ef4444');
 
-  // Realtime lecturas
-  import { onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-
+  /* ===== Realtime: lecturas ===== */
   onChildAdded(query(ref(db,"lecturas"),limitToLast(200)), snap=>{
     const d = snap.val()||{};
     const ms = toMillis(d);
@@ -299,11 +264,10 @@
     [labels,tData,hData,pData,nData].forEach(trim);
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
 
-    // Sólo “alumbrar” en alerta (bad)
-    alertIfBad(cardTemp,  evalTemp(t));
-    alertIfBad(cardHum,   evalHum(h));
-    alertIfBad(cardPres,  evalPres(p));
-    alertIfBad(cardNoise, evalNoise(n));
+    setAlert(cardTemp,  chipTemp,  evalTemp(t));
+    setAlert(cardHum,   chipHum,   evalHum(h));
+    setAlert(cardPres,  chipPres,  evalPres(p));
+    setAlert(cardNoise, chipNoise, evalNoise(n));
   });
 
   onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(200)), snap=>{
@@ -320,10 +284,10 @@
     [uvLabels,uvData].forEach(trim);
     cUV.update();
 
-    alertIfBad(cardUV, evalUV(u));
+    setAlert(cardUV, chipUV, evalUV(u));
   });
 
-  /* ========= Excel (historial completo) ========= */
+  /* ===== Excel (historial completo) ===== */
   document.getElementById('btnExcel').onclick = async ()=>{
     const btn = document.getElementById('btnExcel');
     const prev = btn.textContent;
