@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>LABORATORIO DE MONITOREO ESCOLAR "MARIE CURIE"</title>
 
 <!-- Chart.js -->
@@ -35,22 +35,16 @@
       radial-gradient(900px 600px at -10% 110%, color-mix(in oklab, #68d391 12%, transparent) 0%, transparent 60%),
       linear-gradient(180deg, var(--bg2), var(--bg1));
   }
-  body::before{
-    content:""; position:fixed; inset:0; z-index:-1; pointer-events:none;
-    background:
-      radial-gradient(circle at center, color-mix(in oklab, var(--brand) 5%, transparent) 1px, transparent 1px) 0 0/22px 22px;
-    opacity:.25;
-  }
-
   .wrap{max-width:1280px; margin:0 auto; padding:16px}
   header{
     position:sticky; top:0; z-index:20; backdrop-filter: blur(8px);
     background: color-mix(in oklab, var(--panel) 85%, transparent);
-    border:1px solid var(--ring); border-radius:16px; padding:14px 16px; box-shadow: var(--shadow);
+    border:1px solid var(--ring); border-radius:16px; padding:12px 16px; box-shadow: var(--shadow);
     display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px
   }
   .brand{display:flex; gap:10px; align-items:center; font-weight:800}
   .brand .dot{width:12px; height:12px; background:var(--brand); border-radius:999px; box-shadow:0 0 16px color-mix(in oklab, var(--brand) 55%, #0000)}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
   .btn{
     background:var(--card); color:var(--txt); border:1px solid var(--ring);
     padding:10px 14px; border-radius:12px; box-shadow: var(--shadow); cursor:pointer; transition:transform .05s ease
@@ -70,7 +64,6 @@
   .chip.bad{color:var(--bad); border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
   .alert{outline:2px solid var(--bad); outline-offset:-1px}
   .mini{font-size:12px; color:var(--muted)}
-  .row{display:flex; gap:6px; align-items:center; flex-wrap:wrap}
   .input{
     background:var(--card); color:var(--txt); border:1px solid var(--ring);
     padding:8px 10px; border-radius:10px; min-width:80px
@@ -80,6 +73,10 @@
   canvas{ width:100% !important; height:300px !important }
   h3{margin:0 0 8px 0; font-size:16px; font-weight:600; color:var(--muted)}
 
+  /* Toasts */
+  .toasts{position:fixed; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:50}
+  .toast{background:var(--card); border:1px solid var(--ring); color:var(--txt); padding:10px 12px; border-radius:12px; box-shadow:var(--shadow); font-size:14px}
+  .toast.bad{border-color: color-mix(in oklab, var(--bad) 55%, var(--ring))}
   @media (max-width:1080px){ .grid{grid-template-columns: 1fr 1fr} }
   @media (max-width:640px){ .grid,.charts{grid-template-columns: 1fr} }
 </style>
@@ -87,81 +84,67 @@
 <body>
 <div class="wrap">
   <header>
-    <div class="brand">
-      <span class="dot"></span>
-      <div>LABORATORIO DE MONITOREO ESCOLAR “MARIE CURIE”</div>
+    <div class="brand"><span class="dot"></span><div>LABORATORIO DE MONITOREO ESCOLAR “MARIE CURIE”</div></div>
+    <div class="row">
+      <label class="row" style="font-weight:600;">
+        <input id="toggleSound" type="checkbox" checked />
+        🔔 Sonido de alertas
+      </label>
+      <button id="btnExcel" class="btn primary">📥 Descargar Excel</button>
     </div>
-    <button id="btnExcel" class="btn primary">📥 Descargar Excel</button>
   </header>
 
-  <!-- KPIs (un solo umbral por sensor) -->
+  <!-- Tarjetas -->
   <div class="grid">
-    <!-- Temperatura -->
+    <!-- Temp -->
     <div id="cardTemp" class="card">
       <div class="metric">🌡️ Temp <span id="chipTemp" class="chip ok">OK</span></div>
       <div id="vTemp" class="value">— °C</div>
-      <div class="mini row">Umbral: <input id="thrTemp" class="input" type="number" value="30" step="0.5"> °C</div>
+      <div class="mini">Umbral: <input id="thrTemp" class="input" type="number" value="30" step="0.5"> °C</div>
     </div>
-
-    <!-- Humedad -->
+    <!-- Hum -->
     <div id="cardHum" class="card">
       <div class="metric">💧 Hum <span id="chipHum" class="chip ok">OK</span></div>
       <div id="vHum" class="value">— %</div>
-      <div class="mini row">Umbral: <input id="thrHum" class="input" type="number" value="30" step="1"> % </div>
+      <div class="mini">Umbral: <input id="thrHum" class="input" type="number" value="30" step="1"> %</div>
     </div>
-
-    <!-- Presión -->
+    <!-- Presión (informativa) -->
     <div id="cardPres" class="card">
-      <div class="metric">📊 Pres <span id="chipPres" class="chip ok">OK</span></div>
+      <div class="metric">📊 Presión</div>
       <div id="vPres" class="value">— hPa</div>
-      <div class="mini row">Umbral: <input id="thrPres" class="input" type="number" value="980" step="1"> hPa </div>
     </div>
-
     <!-- Ruido -->
     <div id="cardNoise" class="card">
       <div class="metric">🔊 Ruido <span id="chipNoise" class="chip ok">OK</span></div>
       <div id="vNoise" class="value">— dB</div>
-      <div class="mini row">Umbral: <input id="thrNoise" class="input" type="number" value="70" step="1"> dB</div>
+      <div class="mini">Umbral: <input id="thrNoise" class="input" type="number" value="70" step="1"> dB</div>
     </div>
-
     <!-- UV -->
     <div id="cardUV" class="card">
       <div class="metric">☀️ UV <span id="chipUV" class="chip ok">OK</span></div>
       <div id="vUV" class="value">— mW/cm²</div>
-      <div class="mini row">Umbral: <input id="thrUV" class="input" type="number" value="0.30" step="0.01"> mW/cm²</div>
+      <div class="mini">Umbral: <input id="thrUV" class="input" type="number" value="0.30" step="0.01"> mW/cm²</div>
     </div>
   </div>
 
-  <!-- Gráficas con títulos -->
-  <div class="charts">
-    <div class="card">
-      <h3>🌡️ Temperatura (°C)</h3>
-      <canvas id="chartTemp"></canvas>
-    </div>
-    <div class="card">
-      <h3>💧 Humedad (%)</h3>
-      <canvas id="chartHum"></canvas>
-    </div>
-    <div class="card">
-      <h3>📊 Presión (hPa)</h3>
-      <canvas id="chartPres"></canvas>
-    </div>
-    <div class="card">
-      <h3>🔊 Nivel Sonoro (dB)</h3>
-      <canvas id="chartNoise"></canvas>
-    </div>
-    <div class="card" style="grid-column:1/-1">
-      <h3>☀️ Radiación UV (mW/cm²)</h3>
-      <canvas id="chartUV"></canvas>
-    </div>
+  <!-- Gráficas -->
+  <div class="charts" style="margin-top:16px">
+    <div class="card"><h3>🌡️ Temperatura (°C)</h3><canvas id="chartTemp"></canvas></div>
+    <div class="card"><h3>💧 Humedad (%)</h3><canvas id="chartHum"></canvas></div>
+    <div class="card"><h3>📊 Presión (hPa)</h3><canvas id="chartPres"></canvas></div>
+    <div class="card"><h3>🔊 Nivel Sonoro (dB)</h3><canvas id="chartNoise"></canvas></div>
+    <div class="card" style="grid-column:1/-1"><h3>☀️ Radiación UV (mW/cm²)</h3><canvas id="chartUV"></canvas></div>
   </div>
 </div>
 
-<!-- Firebase + lógica -->
+<!-- Toasts -->
+<div class="toasts" id="toasts"></div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getDatabase, ref, onChildAdded, query, limitToLast, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
+  /* ===== Firebase ===== */
   const firebaseConfig = {
     apiKey: "AIzaSyDQXRc_tIZFCijDqH54Pcfl9jLQE_-fDKM",
     authDomain: "monitorio-4e133.firebaseapp.com",
@@ -172,9 +155,9 @@
     appId: "1:515981874171:web:98dbf980030fb84e9db15e"
   };
   const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+  const db  = getDatabase(app);
 
-  /* ===== Helpers de tiempo ===== */
+  /* ===== Helpers tiempo/UI ===== */
   const toMillis = (d)=> {
     if (typeof d.ts_ms === 'number') return d.ts_ms;
     if (d.fecha && d.hora) {
@@ -184,42 +167,81 @@
     return Date.now();
   };
   const toHM = (ms)=> new Date(ms).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const setText = (id,v)=> document.getElementById(id).textContent = v;
 
-  /* ===== Estados & UI ===== */
-  const vTemp=document.getElementById('vTemp'), vHum=document.getElementById('vHum'),
-        vPres=document.getElementById('vPres'), vNoise=document.getElementById('vNoise'), vUV=document.getElementById('vUV');
+  // Toasts
+  const toasts = document.getElementById('toasts');
+  const toast = (msg)=>{
+    const el = document.createElement('div');
+    el.className = 'toast bad';
+    el.textContent = msg;
+    toasts.appendChild(el);
+    setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .35s'; }, 2200);
+    setTimeout(()=> el.remove(), 2700);
+  };
 
-  const chipTemp=document.getElementById('chipTemp'), chipHum=document.getElementById('chipHum'),
-        chipPres=document.getElementById('chipPres'), chipNoise=document.getElementById('chipNoise'), chipUV=document.getElementById('chipUV');
+  /* ===== Sonido de alertas ===== */
+  const soundChk = document.getElementById('toggleSound');
+  let audioCtx;
+  const ensureAudio = () => { if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); };
+  function beep(freq=880, ms=180) {
+    ensureAudio();
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.exponentialRampToValueAtTime(0.22, t+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + ms/1000);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + ms/1000);
+  }
+  function alertBeep(){
+    beep(880,170); setTimeout(()=>beep(660,170),210); setTimeout(()=>beep(990,220),420);
+  }
+  let lastBeepAt = 0; const BEEP_COOLDOWN_MS = 8000;
+  function maybeBeep(prev, now, label){
+    if (!soundChk.checked) return;
+    if (prev!=='bad' && now==='bad'){
+      const ts = Date.now();
+      if (ts - lastBeepAt > BEEP_COOLDOWN_MS){ alertBeep(); lastBeepAt = ts; toast(`⚠️ ${label}: alerta`); }
+    }
+  }
 
-  const cardTemp=document.getElementById('cardTemp'), cardHum=document.getElementById('cardHum'),
-        cardPres=document.getElementById('cardPres'), cardNoise=document.getElementById('cardNoise'), cardUV=document.getElementById('cardUV');
+  /* ===== UI refs & umbrales ===== */
+  const vTemp  = document.getElementById('vTemp');
+  const vHum   = document.getElementById('vHum');
+  const vPres  = document.getElementById('vPres');
+  const vNoise = document.getElementById('vNoise');
+  const vUV    = document.getElementById('vUV');
 
-  // Umbrales (un solo input por sensor)
+  const chipTemp  = document.getElementById('chipTemp');
+  const chipHum   = document.getElementById('chipHum');
+  const chipNoise = document.getElementById('chipNoise');
+  const chipUV    = document.getElementById('chipUV');
+
+  const cardTemp  = document.getElementById('cardTemp');
+  const cardHum   = document.getElementById('cardHum');
+  const cardNoise = document.getElementById('cardNoise');
+  const cardUV    = document.getElementById('cardUV');
+
   const thrTemp  = document.getElementById('thrTemp');
   const thrHum   = document.getElementById('thrHum');
-  const thrPres  = document.getElementById('thrPres');
   const thrNoise = document.getElementById('thrNoise');
   const thrUV    = document.getElementById('thrUV');
 
-  const setChip = (chip, state)=>{
-    chip.className = 'chip '+(state||'ok');
-    chip.textContent = state==='bad' ? 'Alerta' : 'OK';
-  };
-  const setAlert = (card, chip, state)=>{
-    card.classList.toggle('alert', state==='bad');
-    setChip(chip, state);
-  };
+  const setChip = (chip, state)=>{ chip.className='chip '+(state||'ok'); chip.textContent = state==='bad'?'Alerta':'OK'; };
+  const setAlert= (card,chip,state)=>{ card.classList.toggle('alert', state==='bad'); setChip(chip,state); };
 
-  // Evaluadores (solo OK/Alerta)
-  const evalTemp = t => (!isNaN(t) && t >= (+thrTemp.value||30)) ? 'bad' : 'ok';
-  const evalHum  = h => (!isNaN(h) && h <= (+thrHum.value||30)) ? 'bad' : 'ok';
-  const evalPres = p => (!isNaN(p) && p <= (+thrPres.value||980)) ? 'bad' : 'ok';
-  const evalNoise= n => (!isNaN(n) && n >= (+thrNoise.value||70)) ? 'bad' : 'ok';
-  const evalUV   = u => (!isNaN(u) && u >= (+thrUV.value||0.30)) ? 'bad' : 'ok';
+  const evalTemp  = t => (!isNaN(t) && t >= (+thrTemp.value||30)) ? 'bad' : 'ok';
+  const evalHum   = h => (!isNaN(h) && h <= (+thrHum.value||30)) ? 'bad' : 'ok';
+  const evalNoise = n => (!isNaN(n) && n >= (+thrNoise.value||70)) ? 'bad' : 'ok';
+  const evalUV    = u => (!isNaN(u) && u >= (+thrUV.value||0.30)) ? 'bad' : 'ok';
 
-  /* ===== Gráficos ===== */
-  const MAX = 120;
+  /* ===== Gráficas ===== */
+  const MAX=120;
   const labels=[], tData=[], hData=[], pData=[], nData=[], uvLabels=[], uvData=[];
   const trim=a=>{ if(a.length>MAX) a.splice(0, a.length-MAX); };
 
@@ -230,15 +252,18 @@
       options:{
         animation:false,responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
-        scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0, color:'var(--muted)' } },
-                 y:{ ticks:{ color:'var(--muted)' } } }
+        scales:{ x:{ ticks:{ autoSkip:true, maxRotation:0, color:'var(--muted)'}},
+                 y:{ ticks:{ color:'var(--muted)'}}}
       }
     });
   const cTemp = mkChart('chartTemp','Temp',tData,labels,'#22d3ee');
   const cHum  = mkChart('chartHum','Hum',hData,labels,'#10b981');
   const cPres = mkChart('chartPres','Pres',pData,labels,'#a78bfa');
-  const cNoise= mkChart('chartNoise','Noise',nData,labels,'#f59e0b');
+  const cNoise= mkChart('chartNoise','Ruido',nData,labels,'#f59e0b');
   const cUV   = mkChart('chartUV','UV',uvData,uvLabels,'#ef4444');
+
+  /* ===== Estados previos para beep ===== */
+  const prevState = { temp:'ok', hum:'ok', noise:'ok', uv:'ok' };
 
   /* ===== Realtime: lecturas ===== */
   onChildAdded(query(ref(db,"lecturas"),limitToLast(200)), snap=>{
@@ -251,10 +276,10 @@
     const p = Number(d.presion);
     const n = Number(d.nivel_sonoro);
 
-    if (!isNaN(t)) vTemp.textContent = `${t.toFixed(2)} °C`;
-    if (!isNaN(h)) vHum.textContent  = `${h.toFixed(2)} %`;
-    if (!isNaN(p)) vPres.textContent = `${p.toFixed(2)} hPa`;
-    if (!isNaN(n)) vNoise.textContent= `${n.toFixed(1)}`;
+    if (!isNaN(t)) vTemp.textContent  = `${t.toFixed(2)} °C`;
+    if (!isNaN(h)) vHum.textContent   = `${h.toFixed(2)} %`;
+    if (!isNaN(p)) vPres.textContent  = `${p.toFixed(2)} hPa`;
+    if (!isNaN(n)) vNoise.textContent = `${n.toFixed(1)}`;
 
     labels.push(hm);
     tData.push(!isNaN(t)?t:NaN);
@@ -264,19 +289,20 @@
     [labels,tData,hData,pData,nData].forEach(trim);
     cTemp.update(); cHum.update(); cPres.update(); cNoise.update();
 
-    setAlert(cardTemp,  chipTemp,  evalTemp(t));
-    setAlert(cardHum,   chipHum,   evalHum(h));
-    setAlert(cardPres,  chipPres,  evalPres(p));
-    setAlert(cardNoise, chipNoise, evalNoise(n));
+    const stT = evalTemp(t);   maybeBeep(prevState.temp,  stT, 'Temperatura'); prevState.temp=stT; setAlert(cardTemp, chipTemp, stT);
+    const stH = evalHum(h);    maybeBeep(prevState.hum,   stH, 'Humedad');     prevState.hum =stH; setAlert(cardHum,  chipHum,  stH);
+    // Presión informativa: sin estado ni beep
+    const stN = evalNoise(n);  maybeBeep(prevState.noise, stN, 'Ruido');       prevState.noise=stN; setAlert(cardNoise,chipNoise,stN);
   });
 
+  /* ===== Realtime: UV ===== */
   onChildAdded(query(ref(db,"lecturas_uv"),limitToLast(200)), snap=>{
-    const d=snap.val()||{};
-    if(d.uv_mw_cm2==null) return;
+    const d = snap.val()||{};
+    if (d.uv_mw_cm2==null) return;
 
     const ms = toMillis(d);
     const hm = toHM(ms);
-    const u = Number(d.uv_mw_cm2);
+    const u  = Number(d.uv_mw_cm2);
 
     vUV.textContent = `${u.toFixed(3)}`;
     uvLabels.push(hm);
@@ -284,70 +310,46 @@
     [uvLabels,uvData].forEach(trim);
     cUV.update();
 
-    setAlert(cardUV, chipUV, evalUV(u));
+    const stU = evalUV(u); maybeBeep(prevState.uv, stU, 'UV'); prevState.uv=stU; setAlert(cardUV, chipUV, stU);
   });
 
   /* ===== Excel (historial completo) ===== */
   document.getElementById('btnExcel').onclick = async ()=>{
     const btn = document.getElementById('btnExcel');
-    const prev = btn.textContent;
-    btn.textContent = '⌛ Preparando…';
-    btn.disabled = true;
-
+    const prev = btn.textContent; btn.textContent='⌛ Preparando…'; btn.disabled=true;
     try{
-      const [L, U] = await Promise.all([
-        get(ref(db, 'lecturas')),
-        get(ref(db, 'lecturas_uv'))
-      ]);
-
-      const rows = [];
-      if (L.exists()) {
-        const obj = L.val();
-        for (const v of Object.values(obj)) {
+      const [L,U] = await Promise.all([ get(ref(db,'lecturas')), get(ref(db,'lecturas_uv')) ]);
+      const rows=[];
+      if (L.exists()){
+        const obj=L.val();
+        for (const v of Object.values(obj)){
           rows.push({
-            Fecha: v.fecha || '',
-            Hora:  v.hora  || '',
-            Temperatura: v.temperatura ?? '',
-            Humedad:     v.humedad ?? '',
-            Presion:     v.presion ?? '',
-            Nivel_Sonoro: v.nivel_sonoro ?? '',
-            UV_mWcm2: ''
+            Fecha:v.fecha||'', Hora:v.hora||'',
+            Temperatura:v.temperatura??'', Humedad:v.humedad??'', Presion:v.presion??'',
+            Nivel_Sonoro:v.nivel_sonoro??'', UV_mWcm2:''
           });
         }
       }
-      if (U.exists()) {
-        const obj = U.val();
-        for (const v of Object.values(obj)) {
+      if (U.exists()){
+        const obj=U.val();
+        for (const v of Object.values(obj)){
           rows.push({
-            Fecha: v.fecha || '',
-            Hora:  v.hora  || '',
-            Temperatura: '',
-            Humedad:     '',
-            Presion:     '',
-            Nivel_Sonoro: '',
-            UV_mWcm2: v.uv_mw_cm2 ?? ''
+            Fecha:v.fecha||'', Hora:v.hora||'',
+            Temperatura:'', Humedad:'', Presion:'', Nivel_Sonoro:'', UV_mWcm2:v.uv_mw_cm2??''
           });
         }
       }
-
-      if (!rows.length) {
-        alert('No hay datos en Firebase.');
-      } else {
+      if (!rows.length){ alert('No hay datos en Firebase.'); }
+      else{
         rows.sort((a,b)=> (a.Fecha+a.Hora).localeCompare(b.Fecha+b.Hora));
-        const ws = XLSX.utils.json_to_sheet(rows);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Lecturas');
-        const now = new Date(), y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0'), d=String(now.getDate()).padStart(2,'0');
+        const ws=XLSX.utils.json_to_sheet(rows);
+        const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Lecturas');
+        const now=new Date(), y=now.getFullYear(), m=String(now.getMonth()+1).padStart(2,'0'), d=String(now.getDate()).padStart(2,'0');
         XLSX.writeFile(wb, `MarieCurie_lecturas_${y}-${m}-${d}.xlsx`);
       }
-    }catch(e){
-      console.error(e); alert('Ocurrió un error al generar el Excel.');
-    }finally{
-      btn.textContent = prev;
-      btn.disabled = false;
-    }
+    }catch(e){ console.error(e); alert('Error generando Excel.'); }
+    finally{ btn.textContent=prev; btn.disabled=false; }
   };
 </script>
 </body>
 </html>
-
